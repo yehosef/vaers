@@ -1,0 +1,12 @@
+{
+  "require": {
+    "ruflin/elastica": "^6.0",
+    "ext-json": "*",
+    "ext-mbstring": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "VAERS\\": "src"
+    }
+  }
+}

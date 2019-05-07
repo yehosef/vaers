@@ -1,0 +1,177 @@
+{
+  "order": 0,
+  "index_patterns": [
+    "vaers-*"
+  ],
+  "settings": {
+    "index": {
+      "number_of_shards": "3",
+      "number_of_replicas": "0",
+      "refresh_interval": "10s"
+    }
+  },
+  "mappings": {
+    "_doc": {
+      "dynamic_date_formats": [
+        "MM/dd/yyyy",
+        "yyyy-MM-dd"
+      ],
+      "properties": {
+        "DIED": {
+          "type": "keyword"
+        },
+        "SEX": {
+          "type": "keyword"
+        },
+        "ALLERGIES": {
+          "type": "text"
+        },
+        "STATE": {
+          "type": "keyword"
+        },
+        "CAGE_YR": {
+          "type": "byte"
+        },
+        "RECVDATE": {
+          "type": "date"
+        },
+        "VAX": {
+          "properties": {
+            "LOT": {
+              "type": "keyword"
+            },
+            "ROUTE": {
+              "type": "keyword"
+            },
+            "SITE": {
+              "type": "keyword"
+            },
+            "DOSE_SERIES": {
+              "type": "keyword"
+            },
+            "MANU": {
+              "type": "keyword"
+            },
+            "TYPE": {
+              "type": "keyword"
+            },
+            "NAME": {
+              "type": "text"
+            }
+          }
+        },
+        "VAX_COMBOS": {
+          "type": "keyword"
+        },
+        "L_THREAT": {
+          "type": "keyword"
+        },
+        "PRIOR_VAX": {
+          "type": "text"
+        },
+        "RECOVD": {
+          "type": "keyword"
+        },
+        "OFC_VISIT": {
+          "type": "keyword"
+        },
+        "CUR_ILL": {
+          "type": "text"
+        },
+        "DATEDIED": {
+          "type": "date"
+        },
+        "OTHER_MEDS": {
+          "type": "text"
+        },
+        "VAERS_ID": {
+          "type": "keyword"
+        },
+        "DISABLE": {
+          "type": "keyword"
+        },
+        "REACTIONS": {
+          "type": "keyword"
+        },
+        "BIRTH_DEFECT": {
+          "type": "keyword"
+        },
+        "SYMPTOM_TEXT": {
+          "type": "text"
+        },
+        "SYMPTOMS": {
+          "type": "keyword"
+        },
+        "X_STAY": {
+          "type": "keyword"
+        },
+        "ONSET_DATE": {
+          "type": "date"
+        },
+        "TODAYS_DATE": {
+          "type": "date"
+        },
+        "AGE_YRS": {
+          "type": "half_float"
+        },
+        "NUM_VAX": {
+          "type": "short"
+        },
+        "CAGE_MO": {
+          "type": "half_float"
+        },
+        "HOSPDAYS": {
+          "type": "short"
+        },
+        "FORM_VERS": {
+          "type": "keyword"
+        },
+        "RPT_DATE": {
+          "type": "date"
+        },
+        "ER_VISIT": {
+          "type": "keyword"
+        },
+        "NUMDAYS": {
+          "type": "short"
+        },
+        "LAB_DATA": {
+          "type": "text"
+        },
+        "SPLTTYPE": {
+          "type": "keyword"
+        },
+        "HOSPITAL": {
+          "type": "keyword"
+        },
+        "V_ADMINBY": {
+          "type": "keyword"
+        },
+        "ER_ED_VISIT": {
+          "type": "keyword"
+        },
+        "VAX_DATE": {
+          "type": "date"
+        },
+        "V_FUNDBY": {
+          "type": "keyword"
+        },
+        "HISTORY": {
+          "type": "text"
+        },
+        "SHORT_SYMPTOM_TEXT": {
+          "enabled": false
+        },
+        "SHORT_HISTORY": {
+          "enabled": false
+        },
+        "SHORT_LAB_DATA": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  "aliases": {
+    "vaers": {}
+  }
+}
