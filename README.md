@@ -10,8 +10,8 @@ I've included the VAERS Data User Guide which includes an explanation of the dat
 I am importing the data into Elasticsearch (6.x) and visualizing with Grafana (6.x).  I also explore the data with Kibana, but I find the dashboards of Grafana more flexible to work with.  But there are visualization and queries (like Significant Terms) that I cannot do in Grafana (vote for https://github.com/grafana/grafana/issues/3163) so I will use Kibana for those.  
 
 
-I currently apply just few corrections/modifications to the data:
-* In a case where there is no NUMDAYS field but there is a VAX_DATE and ONSET_DATE, I calculate the NUMDAYS.  
+I currently apply a few corrections/modifications to the data:
+* In a case where there is no NUMDAYS field but there is a VAX_DATE and ONSET_DATE, I calculate the NUMDAYS
 * There were also cases where the ONSET_DATE was before the VAX_DATE - I assumed this was a simple mistake and swap the dates
 * I create a VAX_COMBOS field of vaccination combinations (eg, DTAPIPV::FLU4 or FLU3::MMRV)
 * I create a "REACTIONS" field which contains boolean fields about the outcome (DIED, ER_VISIT, etc.)
@@ -40,12 +40,7 @@ TODO:
 
 SCREENSHOTS:
 
-![VAERS ES-Grafana](media/VAERS_Dashboard_-_Narrow_-_Grafana.png)
-
-![VAERS ES-Kibana Significant terms](media/VAERS_-_Significant_Symptoms_-_Kibana.png)
-
-![Example of raw data](media/raw_ES_data.png)
-
+![VAERS ES-Grafana](media/VAERS-ES-Grafana.gif)
 
 
 For more suggestions or more information, you can contact me, yehosef, at gmail.
