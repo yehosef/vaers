@@ -138,7 +138,7 @@ class ESWriter
 
     public static function getIndexName($year)
     {
-        return 'vaers-'.ES_VERSION.'-'.$year;
+        return 'vaers-'.ES_VERSION.'-'.strtolower($year);
     }
 
 }

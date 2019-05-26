@@ -4,7 +4,6 @@ require_once 'include.php';
 use VAERS\CSVReader;
 use VAERS\ESWriter;
 
-$years = range(1990, 2019);
 
 $bulk_limit = 1000;
 

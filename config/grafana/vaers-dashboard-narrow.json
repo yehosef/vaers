@@ -1,4 +1,59 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_ES-VAERS-ALIAS",
+      "label": "ES-vaers-alias",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "elasticsearch",
+      "pluginName": "Elasticsearch"
+    },
+    {
+      "name": "VAR_ES_QUERY",
+      "type": "constant",
+      "label": "ES_QUERY",
+      "value": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE:lucene]]",
+      "description": ""
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "elasticsearch",
+      "name": "Elasticsearch",
+      "version": "1.0.0"
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "6.1.6"
+    },
+    {
+      "type": "panel",
+      "id": "grafana-piechart-panel",
+      "name": "Pie Chart",
+      "version": "1.3.3"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "singlestat",
+      "name": "Singlestat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -15,8 +70,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 7,
-  "iteration": 1557239259512,
+  "id": null,
+  "iteration": 1558448698309,
   "links": [],
   "panels": [
     {
@@ -24,7 +79,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "fill": 1,
       "gridPos": {
         "h": 3,
@@ -132,7 +187,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "decimals": 1,
       "format": "short",
       "gauge": {
@@ -229,7 +284,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "fill": 1,
       "gridPos": {
         "h": 3,
@@ -352,7 +407,7 @@
           "value": "total"
         }
       ],
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "fontSize": "80%",
       "gridPos": {
         "h": 4,
@@ -446,7 +501,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "fill": 1,
       "gridPos": {
         "h": 4,
@@ -566,7 +621,7 @@
         "label": "Others",
         "threshold": 0
       },
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "fontSize": "80%",
       "format": "short",
       "gridPos": {
@@ -638,7 +693,7 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "fill": 1,
       "gridPos": {
         "h": 4,
@@ -783,7 +838,7 @@
           "value": "NUM_VAX"
         }
       ],
-      "datasource": "ES-vaers-alias",
+      "datasource": "${DS_ES-VAERS-ALIAS}",
       "fontSize": "90%",
       "gridPos": {
         "h": 7,
@@ -954,14 +1009,8 @@
       },
       {
         "allValue": "*",
-        "current": {
-          "text": "MMR + MMRV",
-          "value": [
-            "MMR",
-            "MMRV"
-          ]
-        },
-        "datasource": "ES-vaers-alias",
+        "current": {},
+        "datasource": "${DS_ES-VAERS-ALIAS}",
         "definition": "{\"find\": \"terms\", \"field\": \"VAX.TYPE\", \"size\": 100}",
         "hide": 0,
         "includeAll": true,
@@ -982,13 +1031,7 @@
       },
       {
         "datasource": "ES-vaers-alias",
-        "filters": [
-          {
-            "key": "REACTIONS",
-            "operator": "=",
-            "value": "DIED"
-          }
-        ],
+        "filters": [],
         "hide": 0,
         "label": null,
         "name": "adhoc",
@@ -997,20 +1040,19 @@
       },
       {
         "current": {
-          "text": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE:lucene]]",
-          "value": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE:lucene]]"
+          "value": "${VAR_ES_QUERY}",
+          "text": "${VAR_ES_QUERY}"
         },
         "hide": 2,
         "label": null,
         "name": "ES_QUERY",
         "options": [
           {
-            "selected": true,
-            "text": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE:lucene]]",
-            "value": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE:lucene]]"
+            "value": "${VAR_ES_QUERY}",
+            "text": "${VAR_ES_QUERY}"
           }
         ],
-        "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE:lucene]]",
+        "query": "${VAR_ES_QUERY}",
         "skipUrlSync": false,
         "type": "constant"
       }
@@ -1048,5 +1090,5 @@
   "timezone": "",
   "title": "VAERS Dashboard - Narrow",
   "uid": "lpXnpwzWz",
-  "version": 8
+  "version": 9
 }
