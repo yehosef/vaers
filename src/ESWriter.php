@@ -15,15 +15,20 @@ class ESWriter
     protected $bulk;
 
 
-    public function __construct()
+    public function __construct(Client $client = null)
     {
-        $this->elasticaClient = new Client();
-        $this->bulk           = $this->getBulk();
+        $this->elasticaClient = $client ?? new Client();
+        $this->resetBulk();
     }
 
 
     function send_bulk($records, $index, $update = false)
     {
+        if (memory_get_usage() > 100 * 1024 * 1024)
+        {
+            $this->resetBulk();
+        }
+
         if (!$records || !count($records)) return;
 
         $bulk = $this->bulk;
@@ -125,20 +130,18 @@ class ESWriter
     }
 
 
-    /**
-     * @return Bulk
-     */
-    public function getBulk(): Bulk
-    {
-        $bulk = new Bulk($this->elasticaClient);
 
-        return $bulk;
+    public function resetBulk(): Bulk
+    {
+        $this->bulk = new Bulk($this->elasticaClient);;
+
+        return $this->bulk;
     }
 
 
     public static function getIndexName($year)
     {
-        return 'vaers-'.ES_VERSION.'-'.strtolower($year);
+        return 'vaers-' . ES_VERSION . '-' . strtolower($year);
     }
 
 }
