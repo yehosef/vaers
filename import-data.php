@@ -12,6 +12,11 @@ $data_clean = function ($data) {
     if (!$data) return $data;
     $data = array_filter($data);
 
+    $data['x1']   = 1;   // 100%
+    $data['x10']  = 10;  // 10%
+    $data['x50']  = 50;  // 2%
+    $data['x100'] = 100; // 1%
+
     $data = fix_dates($data);
     $data = shorten_text($data);
 
