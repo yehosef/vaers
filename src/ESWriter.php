@@ -11,7 +11,9 @@ use Exception;
 
 class ESWriter
 {
+    /** @var Client */
     protected $elasticaClient;
+    /** @var Bulk */
     protected $bulk;
 
 

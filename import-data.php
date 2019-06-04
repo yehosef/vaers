@@ -19,6 +19,11 @@ $data_clean = function ($data) {
 
     $data = fix_numdays($data);
 
+    //todo - fix boolean
+    //$data = fix_boolean($data);
+
+    $data = clean_nullable($data);
+
     return $data;
 };
 
@@ -53,8 +58,58 @@ foreach ($years as $year)
 
     if ($documents)
     {
-        $es_writer->send_bulk($documents, $index);
+        $es_writer->send_bulk($documents, $index,!$first_run);
     }
+}
+
+function clean_nullable($data): array
+{
+    $fields = [
+        'ALLERGIES',
+        'OTHER_MEDS',
+        'HISTORY'
+    ];
+
+    static $null_expressions;
+
+    if (!$null_expressions)
+    {
+        $null_expressions = array_flip([
+            'unknown',
+            'na',
+            'no',
+            'n/a',
+            'none',
+            'none known',
+            'no known allergies',
+            'nkda',
+            'nka',
+            'no known drug allergy',
+            'no know drug or food allergies',
+            'no allergies to medications, food, or other products',
+            'none reported',
+            'none on file'
+        ]);
+    }
+
+    foreach ($fields as $field)
+    {
+        if (!array_key_exists($field,$data)) continue;
+
+        $value = trim(strtolower($data[$field]));
+        if (array_key_exists($value, $data))
+        {
+            unset($data[$field]);
+        }
+    }
+
+    return $data;
+}
+
+function fix_boolean($data) :array
+{
+
+    return $data;
 }
 
 
