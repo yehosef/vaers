@@ -1,19 +1,12 @@
 {
   "__inputs": [
     {
-      "name": "DS_ES-VAERS-ALIAS",
-      "label": "ES-vaers-alias",
+      "name": "DS_ES-VAERS",
+      "label": "ES-VAERS",
       "description": "",
       "type": "datasource",
       "pluginId": "elasticsearch",
       "pluginName": "Elasticsearch"
-    },
-    {
-      "name": "VAR_ES_QUERY",
-      "type": "constant",
-      "label": "ES_QUERY",
-      "value": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE:lucene]]",
-      "description": ""
     }
   ],
   "__requires": [
@@ -27,13 +20,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "6.1.6"
-    },
-    {
-      "type": "panel",
-      "id": "grafana-piechart-panel",
-      "name": "Pie Chart",
-      "version": "1.3.3"
+      "version": "6.2.5"
     },
     {
       "type": "panel",
@@ -71,7 +58,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1558448698309,
+  "iteration": 1563803545844,
   "links": [],
   "panels": [
     {
@@ -79,14 +66,8 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_ES-VAERS-ALIAS}",
+      "datasource": "${DS_ES-VAERS}",
       "fill": 1,
-      "gridPos": {
-        "h": 3,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
       "id": 2,
       "legend": {
         "avg": false,
@@ -101,6 +82,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "paceLength": 10,
       "percentage": false,
       "pointradius": 5,
@@ -112,6 +94,7 @@
       "steppedLine": false,
       "targets": [
         {
+          "alias": "Total",
           "bucketAggs": [
             {
               "field": "VAX_DATE",
@@ -127,9 +110,16 @@
           "hide": false,
           "metrics": [
             {
-              "field": "select field",
+              "field": "x1",
               "id": "1",
-              "type": "count"
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
             }
           ],
           "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
@@ -141,7 +131,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "VAERS EVENTS",
+      "title": "Vaccination Date",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -187,7 +177,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_ES-VAERS-ALIAS}",
+      "datasource": "${DS_ES-VAERS}",
       "decimals": 1,
       "format": "short",
       "gauge": {
@@ -199,8 +189,8 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 3,
-        "x": 12,
+        "w": 2,
+        "x": 6,
         "y": 0
       },
       "id": 16,
@@ -220,6 +210,7 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
+      "options": {},
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -254,9 +245,16 @@
           ],
           "metrics": [
             {
-              "field": "select field",
+              "field": "x1",
               "id": "1",
-              "type": "count"
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
             }
           ],
           "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
@@ -284,230 +282,13 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_ES-VAERS-ALIAS}",
+      "datasource": "${DS_ES-VAERS}",
       "fill": 1,
       "gridPos": {
         "h": 3,
-        "w": 9,
-        "x": 15,
+        "w": 4,
+        "x": 8,
         "y": 0
-      },
-      "id": 10,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": false,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "paceLength": 10,
-      "percentage": true,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [
-        {}
-      ],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "fake": true,
-              "field": "NUMDAYS",
-              "id": "4",
-              "settings": {
-                "min_doc_count": 1,
-                "order": "asc",
-                "orderBy": "_term",
-                "size": "20"
-              },
-              "type": "terms"
-            },
-            {
-              "fake": true,
-              "field": "VAX_DATE",
-              "id": "3",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
-          "refId": "A",
-          "timeField": "VAX_DATE"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Onset day",
-      "tooltip": {
-        "shared": false,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "series",
-        "name": null,
-        "show": true,
-        "values": [
-          "total"
-        ]
-      },
-      "yaxes": [
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "cacheTimeout": null,
-      "columns": [
-        {
-          "text": "Total",
-          "value": "total"
-        }
-      ],
-      "datasource": "${DS_ES-VAERS-ALIAS}",
-      "fontSize": "80%",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 3
-      },
-      "id": 21,
-      "links": [],
-      "pageSize": null,
-      "scroll": true,
-      "showHeader": true,
-      "sort": {
-        "col": 1,
-        "desc": true
-      },
-      "styles": [
-        {
-          "alias": "Vaccination",
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "pattern": "VACCINATION.VAX_TYPE",
-          "type": "string"
-        },
-        {
-          "alias": "",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "mappingType": 1,
-          "pattern": "",
-          "thresholds": [],
-          "type": "number",
-          "unit": "short"
-        },
-        {
-          "alias": "Total",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "decimals": 1,
-          "pattern": "Count",
-          "thresholds": [],
-          "type": "number",
-          "unit": "short"
-        }
-      ],
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "fake": true,
-              "field": "VAX.TYPE",
-              "id": "5",
-              "settings": {
-                "min_doc_count": 1,
-                "order": "desc",
-                "orderBy": "_count",
-                "size": "7"
-              },
-              "type": "terms"
-            }
-          ],
-          "metrics": [
-            {
-              "field": "select field",
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
-          "refId": "A",
-          "timeField": "VAX_DATE"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Vax Types",
-      "transform": "table",
-      "type": "table"
-    },
-    {
-      "aliasColors": {},
-      "bars": true,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "${DS_ES-VAERS-ALIAS}",
-      "fill": 1,
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 6,
-        "y": 3
       },
       "id": 12,
       "legend": {
@@ -523,6 +304,7 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
       "paceLength": 10,
       "percentage": false,
       "pointradius": 2,
@@ -551,7 +333,7 @@
               "field": "VAX_DATE",
               "id": "2",
               "settings": {
-                "interval": "auto",
+                "interval": "1y",
                 "min_doc_count": 0,
                 "trimEdges": 0
               },
@@ -560,9 +342,16 @@
           ],
           "metrics": [
             {
-              "field": "select field",
+              "field": "x1",
               "id": "1",
-              "type": "count"
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
             }
           ],
           "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
@@ -614,67 +403,81 @@
       }
     },
     {
-      "aliasColors": {},
-      "breakPoint": "50%",
       "cacheTimeout": null,
-      "combine": {
-        "label": "Others",
-        "threshold": 0
-      },
-      "datasource": "${DS_ES-VAERS-ALIAS}",
+      "columns": [
+        {
+          "text": "Total",
+          "value": "total"
+        }
+      ],
+      "datasource": "${DS_ES-VAERS}",
       "fontSize": "80%",
-      "format": "short",
       "gridPos": {
-        "h": 4,
+        "h": 6,
         "w": 4,
-        "x": 11,
-        "y": 3
+        "x": 12,
+        "y": 0
       },
-      "id": 25,
-      "interval": null,
-      "legend": {
-        "percentage": true,
-        "show": false,
-        "values": false
-      },
-      "legendType": "Right side",
+      "id": 21,
       "links": [],
-      "maxDataPoints": 3,
-      "nullPointMode": "connected",
-      "pieType": "pie",
-      "strokeWidth": 1,
+      "options": {},
+      "pageSize": null,
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": 1,
+        "desc": true
+      },
+      "styles": [
+        {
+          "alias": "Vax Type",
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "pattern": "VAX.TYPE",
+          "type": "string"
+        },
+        {
+          "alias": "Total",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "decimals": 1,
+          "pattern": "Sum",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        }
+      ],
       "targets": [
         {
           "bucketAggs": [
             {
               "fake": true,
-              "field": "REACTIONS",
-              "id": "4",
+              "field": "VAX.TYPE",
+              "id": "5",
               "settings": {
                 "min_doc_count": 1,
                 "order": "desc",
                 "orderBy": "_count",
-                "size": "10"
+                "size": "7"
               },
               "type": "terms"
-            },
-            {
-              "fake": true,
-              "field": "VAX_DATE",
-              "id": "3",
-              "settings": {
-                "interval": "auto",
-                "min_doc_count": 0,
-                "trimEdges": 0
-              },
-              "type": "date_histogram"
             }
           ],
           "metrics": [
             {
-              "field": "select field",
+              "field": "x1",
               "id": "1",
-              "type": "count"
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
             }
           ],
           "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
@@ -684,24 +487,218 @@
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Reactions",
-      "type": "grafana-piechart-panel",
-      "valueName": "total"
+      "title": "",
+      "transform": "table",
+      "type": "table"
+    },
+    {
+      "cacheTimeout": null,
+      "columns": [
+        {
+          "text": "Total",
+          "value": "total"
+        }
+      ],
+      "datasource": "${DS_ES-VAERS}",
+      "fontSize": "80%",
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "id": 27,
+      "links": [],
+      "options": {},
+      "pageSize": null,
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": 1,
+        "desc": true
+      },
+      "styles": [
+        {
+          "alias": "Reactions",
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "pattern": "REACTIONS",
+          "type": "string"
+        },
+        {
+          "alias": "Total",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "decimals": 1,
+          "pattern": "Sum",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        }
+      ],
+      "targets": [
+        {
+          "bucketAggs": [
+            {
+              "fake": true,
+              "field": "REACTIONS",
+              "id": "5",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "10"
+              },
+              "type": "terms"
+            }
+          ],
+          "metrics": [
+            {
+              "field": "x1",
+              "id": "1",
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
+            }
+          ],
+          "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
+          "refId": "A",
+          "timeField": "VAX_DATE"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transform": "table",
+      "type": "table"
+    },
+    {
+      "cacheTimeout": null,
+      "columns": [
+        {
+          "text": "Total",
+          "value": "total"
+        }
+      ],
+      "datasource": "${DS_ES-VAERS}",
+      "fontSize": "80%",
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "id": 28,
+      "links": [],
+      "options": {},
+      "pageSize": null,
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": 1,
+        "desc": true
+      },
+      "styles": [
+        {
+          "alias": "VAX Combos",
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "pattern": "VAX_COMBOS",
+          "type": "string"
+        },
+        {
+          "alias": "Extra Data Fields",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 2,
+          "mappingType": 1,
+          "pattern": "HAS_DATA",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        },
+        {
+          "alias": "Total",
+          "colorMode": null,
+          "colors": [
+            "rgba(245, 54, 54, 0.9)",
+            "rgba(237, 129, 40, 0.89)",
+            "rgba(50, 172, 45, 0.97)"
+          ],
+          "decimals": 1,
+          "pattern": "Sum",
+          "thresholds": [],
+          "type": "number",
+          "unit": "short"
+        }
+      ],
+      "targets": [
+        {
+          "bucketAggs": [
+            {
+              "fake": true,
+              "field": "HAS_DATA",
+              "id": "5",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "10"
+              },
+              "type": "terms"
+            }
+          ],
+          "metrics": [
+            {
+              "field": "x1",
+              "id": "1",
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
+            }
+          ],
+          "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
+          "refId": "A",
+          "timeField": "VAX_DATE"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transform": "table",
+      "type": "table"
     },
     {
       "aliasColors": {},
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_ES-VAERS-ALIAS}",
+      "datasource": "${DS_ES-VAERS}",
       "fill": 1,
       "gridPos": {
-        "h": 4,
-        "w": 9,
-        "x": 15,
+        "h": 3,
+        "w": 6,
+        "x": 0,
         "y": 3
       },
-      "id": 8,
+      "id": 10,
       "legend": {
         "avg": false,
         "current": false,
@@ -715,6 +712,135 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
+      "options": {},
+      "paceLength": 10,
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {}
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "bucketAggs": [
+            {
+              "fake": true,
+              "field": "NUMDAYS",
+              "id": "6",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "asc",
+                "orderBy": "_term",
+                "size": "15"
+              },
+              "type": "terms"
+            },
+            {
+              "fake": true,
+              "field": "VAX_DATE",
+              "id": "5",
+              "settings": {
+                "interval": "1y",
+                "min_doc_count": 0,
+                "trimEdges": 0
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "metrics": [
+            {
+              "field": "x1",
+              "id": "1",
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
+            }
+          ],
+          "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
+          "refId": "A",
+          "timeField": "VAX_DATE"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Onset day",
+      "tooltip": {
+        "shared": false,
+        "sort": 1,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": true,
+        "values": [
+          "total"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_ES-VAERS}",
+      "fill": 1,
+      "gridPos": {
+        "h": 3,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      "id": 30,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {},
       "paceLength": 10,
       "percentage": false,
       "pointradius": 2,
@@ -729,19 +855,51 @@
           "bucketAggs": [
             {
               "fake": true,
-              "field": "AGE_YRS",
               "id": "3",
+              "query": "*",
               "settings": {
-                "interval": 1,
-                "min_doc_count": 1
+                "filters": [
+                  {
+                    "label": "0-1",
+                    "query": "AGE_YRS:[0 TO 1}"
+                  },
+                  {
+                    "label": "1-2",
+                    "query": "AGE_YRS:[1 TO 2}"
+                  },
+                  {
+                    "label": "2-4",
+                    "query": "AGE_YRS:[2 TO 4}"
+                  },
+                  {
+                    "label": "4-10",
+                    "query": "AGE_YRS:[4 TO 10}"
+                  },
+                  {
+                    "label": "<20",
+                    "query": "AGE_YRS:[10 TO 20}"
+                  },
+                  {
+                    "label": "<40",
+                    "query": "AGE_YRS:[20 TO 40}"
+                  },
+                  {
+                    "label": "<60",
+                    "query": "AGE_YRS:[40 TO 60}"
+                  },
+                  {
+                    "label": "​60+",
+                    "query": "AGE_YRS:[60 TO *}"
+                  }
+                ]
               },
-              "type": "histogram"
+              "type": "filters"
             },
             {
               "field": "VAX_DATE",
               "id": "2",
               "settings": {
-                "interval": "auto",
+                "interval": "1y",
                 "min_doc_count": 0,
                 "trimEdges": 0
               },
@@ -750,12 +908,19 @@
           ],
           "metrics": [
             {
-              "field": "select field",
+              "field": "x1",
               "id": "1",
-              "type": "count"
+              "inlineScript": "_value*100/$rate",
+              "meta": {},
+              "settings": {
+                "script": {
+                  "inline": "_value*100/$rate"
+                }
+              },
+              "type": "sum"
             }
           ],
-          "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]] AND AGE_YRS:[0 TO 20]",
+          "query": "[[query:raw]] AND VAX.TYPE:[[VAX_TYPE]]",
           "refId": "A",
           "timeField": "VAX_DATE"
         }
@@ -830,30 +995,31 @@
           "value": "NUMDAYS"
         },
         {
-          "text": "SYMPTOM_TEXT",
-          "value": "SYMPTOM_TEXT"
-        },
-        {
           "text": "NUM_VAX",
           "value": "NUM_VAX"
+        },
+        {
+          "text": "SYMPTOM_TEXT",
+          "value": "SYMPTOM_TEXT"
         }
       ],
-      "datasource": "${DS_ES-VAERS-ALIAS}",
+      "datasource": "${DS_ES-VAERS}",
       "fontSize": "90%",
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 6
       },
       "id": 4,
       "links": [],
+      "options": {},
       "pageSize": 100,
       "scroll": true,
       "showHeader": true,
       "sort": {
         "col": 3,
-        "desc": true
+        "desc": false
       },
       "styles": [
         {
@@ -861,7 +1027,7 @@
           "dateFormat": "MM/DD/YY",
           "link": true,
           "linkTargetBlank": true,
-          "linkUrl": "http://localhost:9200/${__cell_0}/${__cell_1}/${__cell_2}",
+          "linkUrl": "/vaers_id/${__cell_2}",
           "pattern": "VAX_DATE",
           "type": "date"
         },
@@ -878,14 +1044,15 @@
           "mappingType": 1,
           "pattern": "AGE_YRS",
           "thresholds": [
-            ""
+            "3",
+            "10"
           ],
           "type": "number",
           "unit": "short"
         },
         {
           "alias": "#VAX",
-          "colorMode": "cell",
+          "colorMode": null,
           "colors": [
             "rgba(50, 172, 45, 0)",
             "rgba(237, 129, 40, 0.89)",
@@ -908,7 +1075,7 @@
           "colors": [
             "#C4162A",
             "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0)"
+            "rgba(50, 172, 45, 0.97)"
           ],
           "dateFormat": "YYYY-MM-DD HH:mm:ss",
           "decimals": 0,
@@ -916,7 +1083,7 @@
           "pattern": "NUMDAYS",
           "thresholds": [
             "2",
-            "6"
+            "20"
           ],
           "type": "number",
           "unit": "short"
@@ -932,7 +1099,7 @@
           "dateFormat": "YYYY-MM-DD HH:mm:ss",
           "decimals": 2,
           "mappingType": 1,
-          "pattern": "SYMPTOM_TEXT",
+          "pattern": "/SYMPTOM_TEXT/",
           "preserveFormat": false,
           "thresholds": [],
           "type": "string",
@@ -989,6 +1156,53 @@
   "templating": {
     "list": [
       {
+        "allValue": null,
+        "current": {
+          "text": "100",
+          "value": "100"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "%",
+        "multi": false,
+        "name": "rate",
+        "options": [
+          {
+            "selected": true,
+            "text": "100",
+            "value": "100"
+          },
+          {
+            "selected": false,
+            "text": "50",
+            "value": "50"
+          },
+          {
+            "selected": false,
+            "text": "10",
+            "value": "10"
+          },
+          {
+            "selected": false,
+            "text": "5",
+            "value": "5"
+          },
+          {
+            "selected": false,
+            "text": "2",
+            "value": "2"
+          },
+          {
+            "selected": false,
+            "text": "1",
+            "value": "1"
+          }
+        ],
+        "query": "100,50,10,5,2,1",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
         "current": {
           "text": "*",
           "value": "*"
@@ -1010,19 +1224,19 @@
       {
         "allValue": "*",
         "current": {},
-        "datasource": "${DS_ES-VAERS-ALIAS}",
-        "definition": "{\"find\": \"terms\", \"field\": \"VAX.TYPE\", \"size\": 100}",
+        "datasource": "${DS_ES-VAERS}",
+        "definition": "{\"find\": \"terms\", \"field\": \"VAX.TYPE\", \"size\": 500}",
         "hide": 0,
         "includeAll": true,
         "label": "VAX TYPE",
         "multi": true,
         "name": "VAX_TYPE",
         "options": [],
-        "query": "{\"find\": \"terms\", \"field\": \"VAX.TYPE\", \"size\": 100}",
+        "query": "{\"find\": \"terms\", \"field\": \"VAX.TYPE\", \"size\": 500}",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 1,
+        "sort": 5,
         "tagValuesQuery": "",
         "tags": [],
         "tagsQuery": "",
@@ -1030,31 +1244,13 @@
         "useTags": false
       },
       {
-        "datasource": "ES-vaers-alias",
+        "datasource": "ES-VAERS",
         "filters": [],
         "hide": 0,
         "label": null,
         "name": "adhoc",
         "skipUrlSync": false,
         "type": "adhoc"
-      },
-      {
-        "current": {
-          "value": "${VAR_ES_QUERY}",
-          "text": "${VAR_ES_QUERY}"
-        },
-        "hide": 2,
-        "label": null,
-        "name": "ES_QUERY",
-        "options": [
-          {
-            "value": "${VAR_ES_QUERY}",
-            "text": "${VAR_ES_QUERY}"
-          }
-        ],
-        "query": "${VAR_ES_QUERY}",
-        "skipUrlSync": false,
-        "type": "constant"
       }
     ]
   },
@@ -1088,7 +1284,7 @@
     ]
   },
   "timezone": "",
-  "title": "VAERS Dashboard - Narrow",
-  "uid": "lpXnpwzWz",
-  "version": 9
+  "title": "VAERS Dashboard - General",
+  "uid": "VshWNIVZk",
+  "version": 14
 }

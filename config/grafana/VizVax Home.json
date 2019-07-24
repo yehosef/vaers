@@ -1,0 +1,160 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {
+      "type": "panel",
+      "id": "dashlist",
+      "name": "Dashboard list",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "6.2.5"
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "content": "\n# Welcome to VizVax.com \nA tool to visualize vaccination data, particularly adverse reactions.  The current site is built with data from the \n[VAERS Database](https://vaers.hhs.gov/).\n \nThe code used to build this visualization is at [https://github.com/yehosef/vaers](https://github.com/yehosef/vaers).  The data \nis stored in Elasticsearch and the dashboards are built using Grafana.  \n\nThe VAERS data contains the primary report and linked vaccinations and symptoms.  The data \nit flattened into a single row to make it usable in Elasticsearch.  \n\nMost of the dashboards are based on the vaccination date \n(VAX_DATE) but there are many reports that do not have a VAX_DATE - dashboards including those reports use the report received date (RECVDATE).\n\n\nYou can reach me at yehosef at gmail with any comments or suggestions.\n\n\n\n\n\n",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "links": [],
+      "mode": "markdown",
+      "options": {},
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "folderId": 0,
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "headings": true,
+      "id": 6,
+      "limit": 10,
+      "links": [],
+      "options": {},
+      "query": "Dashboard",
+      "recent": false,
+      "search": true,
+      "starred": false,
+      "tags": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Dashboard List",
+      "transparent": true,
+      "type": "dashlist"
+    },
+    {
+      "content": "- **All** - all data using the RECVDATE. Does not have onset days because some reports in this set do not have it.\n\n\n- **General** - main search with several useful metric panels.\n\n\n- **No VAX_DATE** - those reports that specifically don't have a VAX_DATE.  These are usually 3rd party reports that found the \nevent in literature, social media, or word of mouth.  Because there is no VAX_DATE, there is no NUMDAYS (the number of days after vaccination the symptoms appeared.) )\n\n\n- **People** - more panels focusing on information know about the patient\n\n\n- **Vaccine** - more panels focusing on information known about the vaccines given.",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 7
+      },
+      "id": 8,
+      "links": [],
+      "mode": "markdown",
+      "options": {},
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "content": "<div>To sponsor a month or more of hosting costs ($20/month), or to support the project in general, please donate below: </div>\n<div>&nbsp;</div>\n\n<form action=\"https://www.paypal.com/cgi-bin/webscr\" method=\"post\" target=\"_top\">\n<input type=\"hidden\" name=\"cmd\" value=\"_s-xclick\" />\n<input type=\"hidden\" name=\"hosted_button_id\" value=\"8KM2JZ57XDLDN\" />\n<input type=\"image\" src=\"https://www.paypalobjects.com/en_US/IL/i/btn/btn_donateCC_LG.gif\" border=\"0\" name=\"submit\" title=\"PayPal - The safer, easier way to pay online!\" alt=\"Donate with PayPal button\" />\n<img alt=\"\" border=\"0\" src=\"https://www.paypal.com/en_IL/i/scr/pixel.gif\" width=\"1\" height=\"1\" />\n</form>\n\n\n\n",
+      "gridPos": {
+        "h": 4,
+        "w": 11,
+        "x": 0,
+        "y": 8
+      },
+      "id": 2,
+      "links": [],
+      "mode": "html",
+      "options": {},
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    }
+  ],
+  "schemaVersion": 18,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "",
+  "title": "VizVax Home",
+  "uid": "iouqGfMWz",
+  "version": 6
+}

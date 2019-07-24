@@ -28,6 +28,7 @@ class ESWriter
     {
         if (memory_get_usage() > 100 * 1024 * 1024)
         {
+//            echo "reseting bulk client";
             $this->resetBulk();
         }
 
