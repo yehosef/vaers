@@ -5,6 +5,7 @@
   "description": "VAERS adverse-events dashboard on DuckDB + Node (bun). Import pipeline + Express API + Vue frontend.",
   "type": "module",
   "scripts": {
+    "dev": "bun pipeline/dev.js",
     "setup": "bun pipeline/setup.js",
     "build": "bun pipeline/build.js",
     "import": "bun pipeline/import.js",

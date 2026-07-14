@@ -41,19 +41,31 @@ locally from it.
 
 ## Quick start
 
+One command — installs deps, downloads + builds the data on first run, then starts both
+servers:
+
+```bash
+bun run dev            # → http://localhost:3000   (Ctrl-C stops both servers)
+```
+
+First run downloads the ~560 MB bundle and builds the DB (a few minutes); after that it's
+instant. Needs [Bun](https://bun.sh), Node, the `unzip` CLI (preinstalled on macOS;
+`apt-get install unzip` on Debian/Ubuntu), and ~15 GB free disk.
+
+<details>
+<summary>Prefer the manual steps?</summary>
+
 ```bash
 bun install                       # pipeline deps (root)
 cd server && npm install && cd ..
 cd web && npm install && cd ..
 
-bun pipeline/setup.js             # download + unzip the bundle + build the DB (~2.68M cases)
+bun run setup                     # download + unzip the bundle + build the DB (~2.68M cases)
 
-cd server && npm start            # http://localhost:3001   (API)
-cd web && npm run dev             # http://localhost:3000   (dashboard; proxies /api → 3001)
+bun run server                    # http://localhost:3001   (API)
+bun run web                       # http://localhost:3000   (dashboard; proxies /api → 3001)
 ```
-
-`setup.js` needs the `unzip` CLI (preinstalled on macOS; `apt-get install unzip` on
-Debian/Ubuntu). It reports the sizes it produced when done.
+</details>
 
 ### Disk footprint
 
