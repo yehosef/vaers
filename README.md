@@ -1,128 +1,132 @@
 # VAERS Dashboard (DuckDB + Node)
 
 An interactive dashboard over the U.S. **Vaccine Adverse Event Reporting System**
-([vaers.hhs.gov](https://vaers.hhs.gov/)) data. This repo ships all the source CSVs
-(via git LFS) and a self-contained stack — a DuckDB build pipeline, an Express API, and
-a Vue 3 dashboard — so you can rebuild the database and explore the data with one command
-and two servers.
+([vaers.hhs.gov](https://vaers.hhs.gov/)). This repo ships all the source CSVs (via git LFS)
+and a self-contained stack — a DuckDB build pipeline, an Express API, and a Vue 3 dashboard —
+so you can rebuild the database and explore the data with one command and two servers.
 
-It's a reboot of the original 2019 project (PHP → Elasticsearch 6 → Grafana, preserved in
-git history). The dashboard reproduces that Grafana experience: one shared filter context
-driving eight linked panels.
+It's a reboot of the original 2019 project (PHP → Elasticsearch 6 → Grafana, preserved in git
+history). The dashboard reproduces that Grafana experience: one shared filter context driving
+eight linked panels, plus a drill-down into each case's report history.
 
-![VAERS dashboard](media/VAERS-ES-Grafana.gif)
+![Original Grafana dashboard](media/VAERS-ES-Grafana.gif)
 
-*(The GIF above is the original Grafana dashboard — the behavioral target this rewrite reproduces.)*
+*(The GIF is the original Grafana dashboard — the behavioral target this rewrite reproduces.)*
+
+Data currently covers **1990–2026 + NonDomestic**, all at one current vintage
+(~2.68M cases). Everything is JavaScript/SQL — no PHP, Elasticsearch, or Grafana.
 
 ## Architecture
 
 ```
-datasets/VAERS/data/     Source CSVs (1990–2019 + NonDomestic), git LFS
+datasets/VAERS/data/     Source CSVs (1990–2026 + NonDomestic), git LFS (~2.6 GB)
 pipeline/                DuckDB build (bun)
   import.js                windows-1252 → UTF-8 transcode + read_csv into raw tables
   sql/build_reports.sql    denormalized `reports` + `reports_vax` dashboard model
   build.js                 one command: import all CSVs + build the model
 server/                  Express API over DuckDB (@duckdb/node-api), port 3001
 web/                     Vue 3 + Vite + Observable Plot dashboard, port 3000
-data/                    generated, git-ignored: vaers.duckdb + cleaned/
+data/                    generated, git-ignored: vaers.duckdb (~9 GB) + cleaned/
 ```
 
-Everything is JavaScript/SQL — no PHP, Elasticsearch, or Grafana. The database is a single
-DuckDB file, fully rebuildable from the CSVs.
+The database is a single DuckDB file, fully rebuildable from the CSVs.
 
 ## Quick start
 
 ```bash
-# 1. install deps (root = pipeline, server, web)
-bun install
+bun install                       # pipeline deps (root)
 cd server && npm install && cd ..
 cd web && npm install && cd ..
 
-# 2. build the database from the CSVs (~a few minutes; ~722k reports)
-bun pipeline/build.js
+bun pipeline/build.js             # build the DB from the CSVs (~2–3 min, ~2.68M cases)
 
-# 3. run the API and the dashboard (two terminals)
-cd server && npm start          # http://localhost:3001
-cd web && npm run dev           # http://localhost:3000
+cd server && npm start            # http://localhost:3001   (API)
+cd web && npm run dev             # http://localhost:3000   (dashboard; proxies /api → 3001)
 ```
 
-Open http://localhost:3000. (The Vite dev server proxies `/api` to the backend, so no CORS
-setup is needed.)
-
-> The database is opened **READ_ONLY** by the server. Stop the server before re-running
-> `pipeline/build.js`, since DuckDB allows either one writer or multiple readers of a file,
-> not both.
+> The server opens the DB **READ_ONLY**. Stop it before re-running `pipeline/build.js` —
+> DuckDB allows one writer or multiple readers of a file, not both.
 
 ## The dashboard
 
-One filter context — free-text query, VAX TYPE, ad-hoc `field op value` filters, VAX_DATE
-range, and an underreporting `rate` scale — drives eight linked panels; every filter change
-reloads all of them:
+One filter context — free-text/VAERS-ID query, **multi-select** VAX TYPE, adaptive ad-hoc
+`field op value` filters, a VAX_DATE range, and an underreporting `rate` scale — drives eight
+linked panels; every change reloads all of them (with a loading overlay):
 
-- **Total** report count (+ monthly sparkline)
-- **Vaccination Date** — reports per year
-- **Num Vacc.** — vaccines per report (1–8)
-- **Onset day** — days from vaccination to symptom onset (0–19)
-- **Age** — age buckets (0-1 … 60+)
-- **Reactions** — outcome pie (ER_VISIT, HOSPITAL, DIED, …)
-- **Vax Types** — top vaccine types by report count
-- **Case details** — paginated raw reports; the `#VAX` cell reddens with vaccine count
+- **VAERS EVENTS** — cases per year · **Total** (+ sparkline) · **Onset day** (0–19)
+- **Vax Types** table · **Num Vacc.** (1–8) · **Reactions** pie · **Age** buckets
+- **Case details** — paginated; `#VAX` cell colors by dose count; a `+N ↩` badge marks cases
+  with follow-up reports. **Click any row** for a modal showing the primary + every follow-up
+  report (order, received date, reporter, full narrative, outcomes).
 
-The `rate` selector multiplies every count by `100 / rate` to simulate underreporting
-(VAERS is estimated to capture only 1–10% of events), mirroring the original Grafana variable.
+Filter conveniences (matching the old Grafana UX):
+- **Query**: an all-digits value is an exact **VAERS_ID** match (zero-padding agnostic —
+  `25006` finds `0025006`); text searches the narrative (`SYMPTOM_TEXT`).
+- **VAX TYPE**: multi-select with *All*, type-to-filter, and a *Selected (N)* header; several
+  selected means "any of them" (OR).
+- **Ad-hoc filters** query the data for each field's values: low-cardinality fields (STATE,
+  SEX, REACTIONS, `FOLLOWUP_COUNT`, …) get a value dropdown; wide numerics (AGE_YRS, NUMDAYS)
+  get a range input with a min–max hint. E.g. **`FOLLOWUP_COUNT > 0`** surfaces the ~60k
+  multi-report cases.
+- **rate** multiplies every count by `100 / rate` to simulate underreporting (VAERS captures
+  an estimated 1–10% of events).
 
-## Data model & preserved semantics
+## Data model — counting cases, not report submissions
 
-`pipeline/import.js` loads each raw CSV into `vaersdata` / `vaersvax` / `vaerssymptoms`
-using DuckDB `read_csv_auto` (with `dateformat='%m/%d/%Y'` for domestic files and
-`all_varchar` + `strptime` for the NonDomestic set), tagging each row with
-`FILE_NAME` / `FILE_LINE_NO` / `IS_DOMESTIC` and preserving rejects. `--append` dedups on
-`(VAERS_ID, FILE_NAME, FILE_LINE_NO)` for incremental year updates.
+Since **May 8, 2025**, VAERS public files include *secondary reports*: a follow-up report from
+an additional source (provider, manufacturer) for a patient/vaccine/dose already reported.
+These are **not new adverse events** — they re-report the same case. The files expose this via
+a new **`ORDER`** column (1 = primary, >1 = follow-up), and secondaries **reuse the case's
+VAERS_ID** (a case's rows can even span multiple year-files, bucketed by received date).
 
-`pipeline/sql/build_reports.sql` then materializes the `reports` table, porting the derived
-fields from the original PHP importer:
+To avoid double-counting, the model counts **cases (primary reports)**:
 
-- **NUMDAYS** — stored value, else `|ONSET_DATE − VAX_DATE|` (with the onset-before-vax
-  swap fix), dropping implausible values > 10000.
-- **REACTIONS** — a list built from the eight outcome booleans (`DIED`, `HOSPITAL`,
-  `ER_VISIT`, `!RECOVED`, …).
-- **clean_nullable** — the 24 null-like history strings (`unknown`, `none`, `n/a`,
-  `no known allergies`, …) collapsed to NULL across the five history fields.
-- **HAS_DATA** — which history fields survive `clean_nullable`.
-- **NUM_VAX** / **VAX_TYPES** — from the per-report vaccine rows; `reports_vax` holds the
-  distinct `(VAERS_ID, VAX_TYPE)` pairs used by the vax-type dropdown and Vax Types panel.
+- `import.js` captures `ORDER` as **`REPORT_ORDER`** (rows from older primary-only files
+  default to 1).
+- `reports` is **one row per case** (`REPORT_ORDER = 1`); vaccines are aggregated from the
+  primary submission only. Each case carries **`FOLLOWUP_COUNT`**.
+- Every follow-up row is preserved in `vaersdata` and surfaced through the case modal.
+
+Derived fields ported from the original PHP importer: **NUMDAYS** (stored, else
+`|ONSET − VAX|` with the onset-before-vax swap fix, dropping >10000), **REACTIONS** (list from
+the 8 outcome booleans), **clean_nullable** (24 null-like history strings → NULL),
+**HAS_DATA**, **NUM_VAX** / **VAX_TYPES**. `reports_vax` holds distinct `(VAERS_ID, VAX_TYPE)`
+pairs (primary only) for the dropdown + Vax Types panel.
 
 ## API
 
-- `POST /api/dashboard` — `{query, vax_type, adhoc[], date_from, date_to, rate}` → all eight
+- `POST /api/dashboard` — `{query, vax_types[], adhoc[], date_from, date_to, rate}` → all eight
   panel aggregates in one round trip (rate-scaled).
-- `POST /api/cases` — same filters + `{limit, offset}` → paginated case-details rows.
-- `GET /api/filters/vax-types` — vax types for the dropdown (frequency-ordered).
-- `GET /api/status` — health + record counts.
+- `POST /api/cases` — same filters + `{limit, offset}` → paginated rows (with `FOLLOWUP_COUNT`).
+- `GET  /api/case/:id` — every report row for one case (primary + follow-ups) for the modal.
+- `GET  /api/field-values?field=X` — classify a field (`enum` / `numeric` / `text`) for the
+  adaptive ad-hoc input.
+- `GET  /api/filters/vax-types` · `GET /api/status`.
 
-Ad-hoc filter fields and operators are whitelisted; list fields (`REACTIONS`, `VAX_TYPES`,
-`HAS_DATA`) filter via `list_contains`. All user input is passed as bound parameters.
+Ad-hoc fields/operators are whitelisted; list fields (`REACTIONS`, `VAX_TYPES`, `HAS_DATA`)
+filter via `list_has_any` / `list_contains`. All user input is passed as bound parameters.
 
 ## Updating the data
 
-`~/Downloads` may hold newer year sets. To add years:
+The pipeline is incremental. Drop in a new or refreshed year and:
 
 ```bash
-# stop the server first (read/write lock)
-cp ~/Downloads/2020VAERS*.csv datasets/VAERS/data/     # check header parity for 2020+
-bun pipeline/import.js --append --files 2020VAERSDATA.csv 2020VAERSVAX.csv 2020VAERSSYMPTOMS.csv
-bun pipeline/build.js --skip-import                    # rebuild the reports model
+# stop the server first (write lock)
+bun pipeline/import.js --append --files 2027VAERSDATA.csv 2027VAERSVAX.csv 2027VAERSSYMPTOMS.csv
+bun pipeline/build.js --skip-import        # rebuild just the reports model (~25 s)
 ```
 
-New years 2020–2023, 2026, and refreshed 2025 / NonDomestic are captcha-gated downloads
-from vaers.hhs.gov.
+`--append` **replaces** a file's prior rows, so re-downloading an updated year is idempotent —
+no full re-import needed (that's only for a many-file refresh). Downloads from vaers.hhs.gov
+are captcha-gated per file; the single **`AllVAERSDataCSVS.zip`** ("All Years", ~573 MB) is one
+captcha for every year.
 
 ## About the data
 
 VAERS is a voluntary, passive reporting system; reports can be filed by anyone and are
-**unverified**. A report is not proof that a vaccine caused an event. See the VAERS Data Use
-Guide (in `datasets/`) for the official disclaimers. Known data quirks: onset dates before
-vaccination dates, missing NUMDAYS, ~80k reports without a VAX_DATE, and vague free-text.
+**unverified**. A report is not proof a vaccine caused an event. See the VAERS Data Use Guide
+(in `datasets/`) for official disclaimers. Known quirks: onset dates before vaccination dates,
+missing NUMDAYS, reports without a VAX_DATE, and vague free-text.
 
 ---
 Original project & data curation: Yehosef Shapiro (yehosef at gmail).

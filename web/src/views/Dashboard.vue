@@ -37,6 +37,7 @@
       <button class="btn sm apply" @click="store.applyAdhoc()">apply</button>
     </div>
 
+    <div class="content">
     <template v-if="store.dashboard">
       <!-- ===== Row 2: VAERS EVENTS | Total | Onset day ===== -->
       <div class="grid">
@@ -109,6 +110,10 @@
       </div>
     </template>
     <div v-else class="booting">Loading dashboard…</div>
+      <div v-if="store.loading && store.dashboard" class="load-overlay">
+        <div class="spinner"></div><span>Loading…</span>
+      </div>
+    </div>
 
     <CaseModal v-if="openId" :vaers-id="openId" @close="openId = null" />
   </div>
@@ -227,6 +232,21 @@ onMounted(async () => {
 .muted { color: #6b7078; font-weight: 400; } .center { text-align: center; }
 .pager { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 12px; }
 .booting { padding: 40px; text-align: center; color: #8e8e8e; }
+
+/* loading overlay over the panels while a filter reload is in flight */
+.content { position: relative; }
+.load-overlay {
+  position: absolute; inset: 0; z-index: 20; display: flex; align-items: flex-start;
+  justify-content: center; gap: 10px; padding-top: 120px;
+  background: rgba(11, 12, 14, 0.55); backdrop-filter: blur(1px);
+  color: #d8d9da; font-size: 13px;
+}
+.load-overlay span { align-self: center; }
+.spinner {
+  width: 22px; height: 22px; border: 3px solid #2c3235; border-top-color: #33b5e5;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1200px) {
   .grid { grid-template-columns: repeat(6, 1fr); }
