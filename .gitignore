@@ -5,3 +5,6 @@ node_modules/
 *.duckdb.wal
 *.log
 .DS_Store
+
+# extracted from datasets/AllVAERSDataCSVS.zip by pipeline/setup.js
+datasets/VAERS/data/

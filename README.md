@@ -19,32 +19,55 @@ Data currently covers **1990–2026 + NonDomestic**, all at one current vintage
 ## Architecture
 
 ```
-datasets/VAERS/data/     Source CSVs (1990–2026 + NonDomestic), git LFS (~2.6 GB)
-pipeline/                DuckDB build (bun)
+datasets/
+  AllVAERSDataCSVS.zip     the full 1990–present data bundle (git LFS, ~560 MB) — the ONLY
+                           data file in the repo; extracted locally by setup, never committed
+  <YEAR>VAERSData.zip      optional: a fresher current-year bundle, applied over the top
+  VAERS/data/              git-ignored — CSVs extracted from the zip(s) by setup
+pipeline/                  DuckDB build (bun)
+  setup.js                 one command: unzip the bundle(s) + build the DB
   import.js                windows-1252 → UTF-8 transcode + read_csv into raw tables
   sql/build_reports.sql    denormalized `reports` + `reports_vax` dashboard model
-  build.js                 one command: import all CSVs + build the model
-server/                  Express API over DuckDB (@duckdb/node-api), port 3001
-web/                     Vue 3 + Vite + Observable Plot dashboard, port 3000
-data/                    generated, git-ignored: vaers.duckdb (~9 GB) + cleaned/
+  build.js                 import all CSVs + build the model
+server/                    Express API over DuckDB (@duckdb/node-api), port 3001
+web/                       Vue 3 + Vite + Observable Plot dashboard, port 3000
+data/                      git-ignored, generated: vaers.duckdb + cleaned/
 ```
 
-The database is a single DuckDB file, fully rebuildable from the CSVs.
+Only one data file is versioned — the zip bundle — so the repo stays small (fits GitHub's
+free LFS tier). Everything else is generated locally from it.
 
 ## Quick start
 
 ```bash
+git lfs pull                      # fetch datasets/AllVAERSDataCSVS.zip (~560 MB)
+
 bun install                       # pipeline deps (root)
 cd server && npm install && cd ..
 cd web && npm install && cd ..
 
-bun pipeline/build.js             # build the DB from the CSVs (~2–3 min, ~2.68M cases)
+bun pipeline/setup.js             # unzip the bundle + build the DB (~2–3 min, ~2.68M cases)
 
 cd server && npm start            # http://localhost:3001   (API)
 cd web && npm run dev             # http://localhost:3000   (dashboard; proxies /api → 3001)
 ```
 
-> The server opens the DB **READ_ONLY**. Stop it before re-running `pipeline/build.js` —
+`setup.js` needs the `unzip` CLI (preinstalled on macOS; `apt-get install unzip` on
+Debian/Ubuntu). It reports the sizes it produced when done.
+
+### Disk footprint
+
+| What | Size |
+|------|------|
+| `datasets/AllVAERSDataCSVS.zip` (in repo, LFS) | ~560 MB |
+| extracted CSVs (`datasets/VAERS/data/`, git-ignored) | ~2.6 GB |
+| `data/cleaned/` transcode cache (git-ignored, deletable) | ~2.6 GB |
+| `data/vaers.duckdb` (git-ignored) | ~9.3 GB |
+
+Budget **~15 GB free disk** for a full setup. `data/cleaned/` is a scratch cache and can be
+deleted after the build.
+
+> The server opens the DB **READ_ONLY**. Stop it before re-running the build —
 > DuckDB allows one writer or multiple readers of a file, not both.
 
 ## The dashboard
@@ -108,18 +131,32 @@ filter via `list_has_any` / `list_contains`. All user input is passed as bound p
 
 ## Updating the data
 
-The pipeline is incremental. Drop in a new or refreshed year and:
+VAERS updates weekly; the bundled zip is a point-in-time snapshot and does **not** auto-update.
+To refresh a year (say the current one), download its zip from
+[vaers.hhs.gov](https://vaers.hhs.gov/data/datasets.html) (captcha-gated) and either:
+
+**Simple — drop it in and re-run setup:**
 
 ```bash
+cp ~/Downloads/2026VAERSData.zip datasets/    # applied over the top of the bundle
 # stop the server first (write lock)
-bun pipeline/import.js --append --files 2027VAERSDATA.csv 2027VAERSVAX.csv 2027VAERSSYMPTOMS.csv
-bun pipeline/build.js --skip-import        # rebuild just the reports model (~25 s)
+bun pipeline/setup.js                          # re-extracts + full rebuild
 ```
 
-`--append` **replaces** a file's prior rows, so re-downloading an updated year is idempotent —
-no full re-import needed (that's only for a many-file refresh). Downloads from vaers.hhs.gov
-are captcha-gated per file; the single **`AllVAERSDataCSVS.zip`** ("All Years", ~573 MB) is one
-captcha for every year.
+Commit the small year zip (not the 560 MB bundle) so monthly updates stay cheap.
+
+**Faster — incremental (skip the full rebuild):**
+
+```bash
+unzip -o -j ~/Downloads/2026VAERSData.zip '*VAERS*.csv' -d datasets/VAERS/data
+# stop the server first
+bun pipeline/import.js --append --files 2026VAERSDATA.csv 2026VAERSVAX.csv 2026VAERSSYMPTOMS.csv
+bun pipeline/build.js --skip-import            # rebuild just the reports model (~25 s)
+```
+
+`--append` **replaces** a file's prior rows (matched by filename), so re-importing an updated
+year is idempotent — no full re-import needed. The single **`AllVAERSDataCSVS.zip`** ("All
+Years", ~560 MB) is one captcha for the entire history.
 
 ## About the data
 
