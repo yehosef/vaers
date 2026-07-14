@@ -1,7 +1,7 @@
 // Dashboard API — all 8 panel aggregates in one round trip, plus paginated cases.
 import express from 'express';
 import { all, get, getDbPath } from '../db.js';
-import { buildFilters, rateMultiplier } from '../filters.js';
+import { buildFilters, rateMultiplier, classifyField } from '../filters.js';
 
 const router = express.Router();
 
@@ -99,6 +99,47 @@ router.post('/cases', async (req, res) => {
     res.json({ rows, total: Number(totalRow.c), limit, offset });
   } catch (err) {
     console.error('cases error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/field-values?field=STATE — describe a filterable field so the UI can pick
+// the right value input (enum dropdown vs numeric range vs free text), like Grafana adhoc.
+const VALUE_LIMIT = 200;
+router.get('/field-values', async (req, res) => {
+  try {
+    const field = String(req.query.field || '').toUpperCase();
+    const kind = classifyField(field); // validated whitelist -> safe to interpolate
+    if (!kind) return res.status(400).json({ error: 'field not filterable' });
+
+    if (kind === 'bool') {
+      return res.json({ field, kind: 'enum', values: ['true', 'false'] });
+    }
+    if (kind === 'num') {
+      const r = await get(`SELECT MIN(${field})::DOUBLE mn, MAX(${field})::DOUBLE mx,
+                                  COUNT(DISTINCT ${field})::BIGINT d FROM reports`);
+      const distinct = Number(r.d);
+      // low-cardinality numerics (NUM_VAX, FOLLOWUP_COUNT) still get a value dropdown
+      if (distinct > 0 && distinct <= 20) {
+        const vals = await all(`SELECT DISTINCT ${field}::BIGINT v FROM reports
+                                WHERE ${field} IS NOT NULL ORDER BY 1`);
+        return res.json({ field, kind: 'numeric', min: r.mn, max: r.mx,
+          values: vals.map((x) => x.v) });
+      }
+      return res.json({ field, kind: 'numeric', min: r.mn, max: r.mx, distinct });
+    }
+    if (kind === 'list') {
+      const rows = await all(`SELECT DISTINCT v FROM (SELECT unnest(${field}) v FROM reports)
+                              WHERE v IS NOT NULL AND v <> '' ORDER BY 1 LIMIT 300`);
+      return res.json({ field, kind: 'enum', values: rows.map((r) => r.v) });
+    }
+    // string
+    const rows = await all(`SELECT DISTINCT ${field} v FROM reports
+                            WHERE ${field} IS NOT NULL AND ${field} <> ''
+                            ORDER BY 1 LIMIT ${VALUE_LIMIT + 1}`);
+    if (rows.length > VALUE_LIMIT) return res.json({ field, kind: 'text' });
+    return res.json({ field, kind: 'enum', values: rows.map((r) => r.v) });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

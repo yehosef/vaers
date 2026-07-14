@@ -13,7 +13,7 @@ const SCALAR_FIELDS = {
   STATE: 'str', SEX: 'str', DIED: 'str', L_THREAT: 'str', HOSPITAL: 'str',
   DISABLE: 'str', RECOVD: 'str', ER_VISIT: 'str', ER_ED_VISIT: 'str', X_STAY: 'str',
   BIRTH_DEFECT: 'str', OFC_VISIT: 'str', V_ADMINBY: 'str', V_FUNDBY: 'str',
-  AGE_YRS: 'num', NUMDAYS: 'num', NUM_VAX: 'num', IS_DOMESTIC: 'bool',
+  AGE_YRS: 'num', NUMDAYS: 'num', NUM_VAX: 'num', FOLLOWUP_COUNT: 'num', IS_DOMESTIC: 'bool',
 };
 // List columns — membership via list_contains.
 const LIST_FIELDS = new Set(['REACTIONS', 'VAX_TYPES', 'HAS_DATA']);
@@ -21,13 +21,26 @@ const LIST_FIELDS = new Set(['REACTIONS', 'VAX_TYPES', 'HAS_DATA']);
 const SCALAR_OPS = new Set(['=', '!=', '>', '<', '>=', '<=']);
 const LIST_OPS = new Set(['=', '!=']);
 
+// Classify a whitelisted adhoc field: 'num' | 'str' | 'bool' | 'list' | null.
+export function classifyField(field) {
+  const f = String(field || '').toUpperCase();
+  if (LIST_FIELDS.has(f)) return 'list';
+  return SCALAR_FIELDS[f] || null;
+}
+
 export function buildFilters(body = {}) {
   const conds = [];
   const params = [];
   const p = (v) => { params.push(v); return `$${params.length}`; };
 
-  if (body.query && String(body.query).trim() && String(body.query).trim() !== '*') {
-    conds.push(`r.SYMPTOM_TEXT ILIKE ${p('%' + String(body.query).trim() + '%')}`);
+  const q = String(body.query ?? '').trim();
+  if (q && q !== '*') {
+    if (/^\d+$/.test(q)) {
+      // all-digits -> exact VAERS_ID match, ignoring zero-padding (0025006 == 25006)
+      conds.push(`TRY_CAST(r.VAERS_ID AS BIGINT) = TRY_CAST(${p(q)} AS BIGINT)`);
+    } else {
+      conds.push(`r.SYMPTOM_TEXT ILIKE ${p('%' + q + '%')}`);
+    }
   }
 
   // VAX TYPE is multi-select (Grafana: multi=true, includeAll, allValue '*').

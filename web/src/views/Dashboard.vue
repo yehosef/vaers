@@ -5,7 +5,7 @@
       <div class="fb-left">
         <div class="grp">
           <label class="lbl">query</label>
-          <input class="inp query" type="text" placeholder="*"
+          <input class="inp query" type="text" placeholder="* · text · or VAERS ID"
                  v-model="queryDraft"
                  @keyup.enter="store.setQuery(queryDraft)" @blur="store.setQuery(queryDraft)" />
         </div>
@@ -32,12 +32,8 @@
 
     <!-- ===== Adhoc filter rows ===== -->
     <div class="adhoc" v-if="store.adhoc.length">
-      <div class="adhoc-row" v-for="(a, i) in store.adhoc" :key="i">
-        <select class="inp sm" v-model="a.field"><option v-for="f in adhocFields" :key="f" :value="f">{{ f }}</option></select>
-        <select class="inp xs" v-model="a.op"><option v-for="o in adhocOps" :key="o" :value="o">{{ o }}</option></select>
-        <input class="inp sm" v-model="a.value" placeholder="value" @keyup.enter="store.applyAdhoc()" />
-        <button class="btn xs" @click="store.removeAdhoc(i)">✕</button>
-      </div>
+      <AdhocRow v-for="(a, i) in store.adhoc" :key="i" :row="a" :fields="adhocFields"
+                @apply="store.applyAdhoc()" @remove="store.removeAdhoc(i)" />
       <button class="btn sm apply" @click="store.applyAdhoc()">apply</button>
     </div>
 
@@ -124,6 +120,7 @@ import { useFilterStore } from '../stores/filterStore.js'
 import VaxTypeSelect from '../components/VaxTypeSelect.vue'
 import DateRange from '../components/DateRange.vue'
 import CaseModal from '../components/CaseModal.vue'
+import AdhocRow from '../components/AdhocRow.vue'
 import * as plots from '../utils/plots.js'
 
 const store = useFilterStore()
@@ -131,9 +128,9 @@ const fmt = plots.fmt
 const palette = plots.PALETTE
 
 const rateOptions = [100, 50, 10, 5, 2, 1]
-const adhocFields = ['STATE', 'SEX', 'DIED', 'HOSPITAL', 'L_THREAT', 'DISABLE', 'RECOVD', 'ER_VISIT',
-  'ER_ED_VISIT', 'X_STAY', 'BIRTH_DEFECT', 'OFC_VISIT', 'V_ADMINBY', 'AGE_YRS', 'NUMDAYS', 'NUM_VAX',
-  'IS_DOMESTIC', 'REACTIONS', 'VAX_TYPES', 'HAS_DATA']
+const adhocFields = ['FOLLOWUP_COUNT', 'STATE', 'SEX', 'DIED', 'HOSPITAL', 'L_THREAT', 'DISABLE', 'RECOVD',
+  'ER_VISIT', 'ER_ED_VISIT', 'X_STAY', 'BIRTH_DEFECT', 'OFC_VISIT', 'V_ADMINBY', 'AGE_YRS', 'NUMDAYS',
+  'NUM_VAX', 'IS_DOMESTIC', 'REACTIONS', 'VAX_TYPES', 'HAS_DATA']
 const adhocOps = ['=', '!=', '>', '<', '>=', '<=']
 
 const queryDraft = ref('')

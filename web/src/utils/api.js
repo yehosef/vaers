@@ -25,6 +25,11 @@ export async function fetchCases(f, limit, offset) {
   return data
 }
 
+export async function fetchFieldValues(field) {
+  const { data } = await http.get('/field-values', { params: { field } })
+  return data
+}
+
 export async function fetchCase(vaersId) {
   const { data } = await http.get(`/case/${encodeURIComponent(vaersId)}`)
   return data
