@@ -8,7 +8,7 @@ export const useFilterStore = defineStore('filters', {
   state: () => ({
     // filter context
     query: '',
-    vaxType: '',
+    vaxTypes: [],         // multi-select; [] === All
     adhoc: [],            // [{ field, op, value }]
     dateFrom: '',
     dateTo: '',
@@ -30,7 +30,7 @@ export const useFilterStore = defineStore('filters', {
   getters: {
     totalPages: (s) => Math.max(1, Math.ceil(s.cases.total / s.pageSize)),
     filterCtx: (s) => ({
-      query: s.query, vaxType: s.vaxType, adhoc: s.adhoc,
+      query: s.query, vaxTypes: s.vaxTypes, adhoc: s.adhoc,
       dateFrom: s.dateFrom, dateTo: s.dateTo, rate: s.rate,
     }),
   },
@@ -75,18 +75,19 @@ export const useFilterStore = defineStore('filters', {
     },
 
     // ---- filter mutations (each triggers a full reload) ----
-    setQuery(v)    { this.query = v;    return this.reload() },
-    setVaxType(v)  { this.vaxType = v;  return this.reload() },
-    setDateFrom(v) { this.dateFrom = v; return this.reload() },
-    setDateTo(v)   { this.dateTo = v;   return this.reload() },
-    setRate(v)     { this.rate = Number(v); return this.reload() },
+    setQuery(v)     { this.query = v;    return this.reload() },
+    setVaxTypes(v)  { this.vaxTypes = Array.isArray(v) ? v : []; return this.reload() },
+    setDateRange(from, to) { this.dateFrom = from || ''; this.dateTo = to || ''; return this.reload() },
+    setDateFrom(v)  { this.dateFrom = v; return this.reload() },
+    setDateTo(v)    { this.dateTo = v;   return this.reload() },
+    setRate(v)      { this.rate = Number(v); return this.reload() },
 
     addAdhoc()        { this.adhoc.push({ field: 'STATE', op: '=', value: '' }) },
     removeAdhoc(i)    { this.adhoc.splice(i, 1); return this.reload() },
     applyAdhoc()      { return this.reload() },
 
     reset() {
-      this.query = ''; this.vaxType = ''; this.adhoc = []
+      this.query = ''; this.vaxTypes = []; this.adhoc = []
       this.dateFrom = ''; this.dateTo = ''; this.rate = 100
       return this.reload()
     },

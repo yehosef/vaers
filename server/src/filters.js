@@ -30,8 +30,16 @@ export function buildFilters(body = {}) {
     conds.push(`r.SYMPTOM_TEXT ILIKE ${p('%' + String(body.query).trim() + '%')}`);
   }
 
-  if (body.vax_type && String(body.vax_type).trim() && String(body.vax_type) !== 'All') {
-    conds.push(`list_contains(r.VAX_TYPES, ${p(String(body.vax_type))})`);
+  // VAX TYPE is multi-select (Grafana: multi=true, includeAll, allValue '*').
+  // Several selected -> match reports having ANY of them (list_has_any / OR).
+  const vaxTypes = []
+    .concat(Array.isArray(body.vax_types) ? body.vax_types : [])
+    .concat(body.vax_type ? [body.vax_type] : []) // legacy single value
+    .map((v) => String(v).trim())
+    .filter((v) => v && v !== '*' && v !== 'All');
+  if (vaxTypes.length) {
+    const list = vaxTypes.map((v) => p(v)).join(', ');
+    conds.push(`list_has_any(r.VAX_TYPES, [${list}])`);
   }
 
   if (body.date_from) conds.push(`r.VAX_DATE >= ${p(String(body.date_from))}`);

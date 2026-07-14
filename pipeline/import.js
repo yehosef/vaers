@@ -59,18 +59,18 @@ const SCHEMAS = {
     NUMDAYS INTEGER, LAB_DATA TEXT, V_ADMINBY VARCHAR, V_FUNDBY VARCHAR, OTHER_MEDS TEXT,
     CUR_ILL TEXT, HISTORY TEXT, PRIOR_VAX VARCHAR, SPLTTYPE VARCHAR, FORM_VERS VARCHAR,
     TODAYS_DATE DATE, BIRTH_DEFECT VARCHAR, OFC_VISIT VARCHAR, ER_ED_VISIT VARCHAR,
-    ALLERGIES VARCHAR, IS_DOMESTIC BOOLEAN, FILE_NAME VARCHAR, FILE_LINE_NO INTEGER,
+    ALLERGIES VARCHAR, REPORT_ORDER INTEGER, IS_DOMESTIC BOOLEAN, FILE_NAME VARCHAR, FILE_LINE_NO INTEGER,
     PRIMARY KEY (VAERS_ID, FILE_NAME, FILE_LINE_NO)`,
   vaersvax: `
     VAERS_ID VARCHAR, VAX_TYPE VARCHAR, VAX_MANU VARCHAR, VAX_LOT VARCHAR,
     VAX_DOSE_SERIES VARCHAR, VAX_ROUTE VARCHAR, VAX_SITE VARCHAR, VAX_NAME VARCHAR,
-    IS_DOMESTIC BOOLEAN, FILE_NAME VARCHAR, FILE_LINE_NO INTEGER,
+    REPORT_ORDER INTEGER, IS_DOMESTIC BOOLEAN, FILE_NAME VARCHAR, FILE_LINE_NO INTEGER,
     PRIMARY KEY (VAERS_ID, FILE_NAME, FILE_LINE_NO)`,
   vaerssymptoms: `
     VAERS_ID VARCHAR, SYMPTOM1 VARCHAR, SYMPTOMVERSION1 VARCHAR, SYMPTOM2 VARCHAR,
     SYMPTOMVERSION2 VARCHAR, SYMPTOM3 VARCHAR, SYMPTOMVERSION3 VARCHAR, SYMPTOM4 VARCHAR,
-    SYMPTOMVERSION4 VARCHAR, SYMPTOM5 VARCHAR, SYMPTOMVERSION5 VARCHAR, IS_DOMESTIC BOOLEAN,
-    FILE_NAME VARCHAR, FILE_LINE_NO INTEGER,
+    SYMPTOMVERSION4 VARCHAR, SYMPTOM5 VARCHAR, SYMPTOMVERSION5 VARCHAR,
+    REPORT_ORDER INTEGER, IS_DOMESTIC BOOLEAN, FILE_NAME VARCHAR, FILE_LINE_NO INTEGER,
     PRIMARY KEY (VAERS_ID, FILE_NAME, FILE_LINE_NO)`,
 };
 
@@ -180,23 +180,29 @@ async function importOne(conn, cleanPath, fileName, tableName, append) {
   // Ensure target table exists.
   await conn.run(`CREATE TABLE IF NOT EXISTS ${tableName} (${SCHEMAS[tableName]})`);
 
+  // In --append mode, re-importing a file replaces its prior rows (idempotent,
+  // and handles re-downloading an existing year that grew — e.g. a refreshed file).
+  if (append) {
+    await conn.run(`DELETE FROM ${tableName} WHERE FILE_NAME = '${sqlPath(fileName)}'`);
+  }
+
   if (importCount > 0) {
     const cols = EXPECTED_COLUMNS[tableName];
-    const meta = ['IS_DOMESTIC', 'FILE_NAME', 'FILE_LINE_NO'];
-    const columnList = [...cols, ...meta].join(', ');
+    // Post-May-2025 files carry a trailing ORDER column = report sequence per
+    // VAERS_ID (1 = primary, >1 = secondary/follow-up). Older files lack it → 1.
+    const tempCols = (await conn.runAndReadAll(`DESCRIBE ${tmp}`)).getRowObjects().map((r) => r.column_name);
+    const orderExpr = tempCols.includes('ORDER')
+      ? `COALESCE(TRY_CAST("ORDER" AS INTEGER), 1)` : `1`;
 
-    let selectList;
-    if (nonDom) {
-      // all_varchar read: convert date columns via strptime.
-      selectList = cols
-        .map((c) => (DATE_COLUMNS.includes(c)
-          ? `TRY_CAST(strptime(${c}, '%m/%d/%Y') AS DATE) AS ${c}`
-          : c))
-        .concat(meta)
-        .join(', ');
-    } else {
-      selectList = columnList;
-    }
+    const targetMeta = ['REPORT_ORDER', 'IS_DOMESTIC', 'FILE_NAME', 'FILE_LINE_NO'];
+    const sourceMeta = [orderExpr, 'IS_DOMESTIC', 'FILE_NAME', 'FILE_LINE_NO'];
+    const columnList = [...cols, ...targetMeta].join(', ');
+
+    const baseSelect = nonDom
+      ? cols.map((c) => (DATE_COLUMNS.includes(c)
+          ? `TRY_CAST(strptime(${c}, '%m/%d/%Y') AS DATE) AS ${c}` : c))
+      : cols.slice();
+    const selectList = [...baseSelect, ...sourceMeta].join(', ');
 
     const verb = append ? 'INSERT OR IGNORE INTO' : 'INSERT INTO';
     await conn.run(`${verb} ${tableName} (${columnList}) SELECT ${selectList} FROM ${tmp}`);

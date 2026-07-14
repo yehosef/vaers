@@ -7,7 +7,7 @@ const http = axios.create({ baseURL: '/api', timeout: 60000 })
 export function filterPayload(f) {
   return {
     query: f.query || '',
-    vax_type: f.vaxType || null,
+    vax_types: f.vaxTypes || [],
     adhoc: (f.adhoc || []).filter((a) => a.field && a.value !== '' && a.value != null),
     date_from: f.dateFrom || null,
     date_to: f.dateTo || null,
@@ -22,6 +22,11 @@ export async function fetchDashboard(f) {
 
 export async function fetchCases(f, limit, offset) {
   const { data } = await http.post('/cases', { ...filterPayload(f), limit, offset })
+  return data
+}
+
+export async function fetchCase(vaersId) {
+  const { data } = await http.get(`/case/${encodeURIComponent(vaersId)}`)
   return data
 }
 

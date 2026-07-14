@@ -88,7 +88,8 @@ router.post('/cases', async (req, res) => {
     const rows = await all(
       `SELECT r.VAERS_ID,
               strftime(r.VAX_DATE, '%Y-%m-%d') AS VAX_DATE,
-              r.AGE_YRS, r.NUMDAYS, r.SHORT_SYMPTOM_TEXT, r.NUM_VAX::BIGINT NUM_VAX
+              r.AGE_YRS, r.NUMDAYS, r.SHORT_SYMPTOM_TEXT, r.NUM_VAX::BIGINT NUM_VAX,
+              r.FOLLOWUP_COUNT::BIGINT FOLLOWUP_COUNT
        FROM reports r ${where}
        ORDER BY r.VAX_DATE DESC NULLS LAST, r.VAERS_ID DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -98,6 +99,28 @@ router.post('/cases', async (req, res) => {
     res.json({ rows, total: Number(totalRow.c), limit, offset });
   } catch (err) {
     console.error('cases error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/case/:id — every report row for one case (primary + follow-ups) for the modal.
+router.get('/case/:id', async (req, res) => {
+  try {
+    const reports = await all(
+      `SELECT COALESCE(REPORT_ORDER, 1)::BIGINT AS REPORT_ORDER, IS_DOMESTIC,
+              strftime(RECVDATE, '%Y-%m-%d')  AS RECVDATE,
+              strftime(VAX_DATE, '%Y-%m-%d')  AS VAX_DATE,
+              strftime(ONSET_DATE, '%Y-%m-%d') AS ONSET_DATE,
+              AGE_YRS, SEX, STATE, NUMDAYS::BIGINT NUMDAYS,
+              V_ADMINBY, V_FUNDBY, SPLTTYPE,
+              DIED, L_THREAT, HOSPITAL, DISABLE, RECOVD, ER_VISIT, ER_ED_VISIT,
+              SYMPTOM_TEXT
+       FROM vaersdata WHERE VAERS_ID = $1
+       ORDER BY COALESCE(REPORT_ORDER, 1), FILE_LINE_NO`,
+      [req.params.id]
+    );
+    res.json({ vaers_id: req.params.id, reports });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

@@ -33,7 +33,8 @@ DROP TABLE IF EXISTS reports_vax;
 CREATE TABLE reports_vax AS
   SELECT DISTINCT VAERS_ID, VAX_TYPE
   FROM vaersvax
-  WHERE VAX_TYPE IS NOT NULL AND VAX_TYPE <> '';
+  WHERE VAX_TYPE IS NOT NULL AND VAX_TYPE <> ''
+    AND COALESCE(REPORT_ORDER, 1) = 1;  -- primary submission only
 
 -- ---------------------------------------------------------------------------
 -- reports: one row per vaersdata row (count parity preserved via 1:1 LEFT JOIN).
@@ -47,6 +48,13 @@ WITH vax_agg AS (
     array_sort(list(DISTINCT VAX_TYPE)
       FILTER (WHERE VAX_TYPE IS NOT NULL AND VAX_TYPE <> '')) AS VAX_TYPES
   FROM vaersvax
+  WHERE COALESCE(REPORT_ORDER, 1) = 1                   -- primary submission's vaccines
+  GROUP BY VAERS_ID
+),
+followups AS (   -- how many follow-up (secondary) reports exist per case
+  SELECT VAERS_ID,
+         COUNT(*) FILTER (WHERE COALESCE(REPORT_ORDER, 1) > 1) AS FOLLOWUP_COUNT
+  FROM vaersdata
   GROUP BY VAERS_ID
 )
 SELECT
@@ -86,6 +94,7 @@ SELECT
   clean_null(d.LAB_DATA)    AS LAB_DATA,
 
   d.IS_DOMESTIC,
+  coalesce(fu.FOLLOWUP_COUNT, 0)           AS FOLLOWUP_COUNT,
   coalesce(va.NUM_VAX, 0)                  AS NUM_VAX,
   coalesce(va.VAX_TYPES, []::VARCHAR[])    AS VAX_TYPES,
 
@@ -111,7 +120,9 @@ SELECT
   ], lambda x: x IS NOT NULL)                   AS HAS_DATA
 
 FROM vaersdata d
-LEFT JOIN vax_agg va USING (VAERS_ID);
+LEFT JOIN vax_agg va USING (VAERS_ID)
+LEFT JOIN followups fu USING (VAERS_ID)
+WHERE COALESCE(d.REPORT_ORDER, 1) = 1;   -- one row per case (primary report)
 
 -- Indexes for filtered aggregation.
 CREATE INDEX idx_reports_vaxdate  ON reports(VAX_DATE);

@@ -2,112 +2,106 @@
   <div class="dash">
     <!-- ===== Filter bar ===== -->
     <div class="filterbar">
-      <div class="fb-item grow">
-        <label>Query</label>
-        <input class="inp" type="text" placeholder="search symptom text…"
-               v-model="queryDraft" @keyup.enter="store.setQuery(queryDraft)" @blur="store.setQuery(queryDraft)" />
+      <div class="fb-left">
+        <div class="grp">
+          <label class="lbl">query</label>
+          <input class="inp query" type="text" placeholder="*"
+                 v-model="queryDraft"
+                 @keyup.enter="store.setQuery(queryDraft)" @blur="store.setQuery(queryDraft)" />
+        </div>
+        <VaxTypeSelect :options="store.vaxTypeOptions" :model-value="store.vaxTypes"
+                       @change="store.setVaxTypes($event)" />
+        <div class="grp adhoc-add">
+          <label class="lbl">adhoc</label>
+          <button class="plus" @click="store.addAdhoc()">＋</button>
+        </div>
       </div>
-      <div class="fb-item">
-        <label>VAX TYPE</label>
-        <select class="inp" :value="store.vaxType" @change="store.setVaxType($event.target.value)">
-          <option value="">All</option>
-          <option v-for="t in store.vaxTypeOptions" :key="t" :value="t">{{ t }}</option>
-        </select>
-      </div>
-      <div class="fb-item">
-        <label>From (VAX_DATE)</label>
-        <input class="inp" type="date" :value="store.dateFrom" @change="store.setDateFrom($event.target.value)" />
-      </div>
-      <div class="fb-item">
-        <label>To</label>
-        <input class="inp" type="date" :value="store.dateTo" @change="store.setDateTo($event.target.value)" />
-      </div>
-      <div class="fb-item">
-        <label>Rate (underreporting)</label>
-        <select class="inp" :value="store.rate" @change="store.setRate($event.target.value)">
-          <option v-for="r in rateOptions" :key="r" :value="r">rate {{ r }} (×{{ 100 / r }})</option>
-        </select>
-      </div>
-      <div class="fb-item">
-        <label>&nbsp;</label>
+      <div class="fb-right">
+        <DateRange :from="store.dateFrom" :to="store.dateTo" @change="(f,t) => store.setDateRange(f,t)" />
+        <div class="grp">
+          <label class="lbl">rate</label>
+          <select class="inp" :value="store.rate" @change="store.setRate($event.target.value)">
+            <option v-for="r in rateOptions" :key="r" :value="r">{{ r }} (×{{ 100 / r }})</option>
+          </select>
+        </div>
         <button class="btn" @click="onReset">Reset</button>
+        <span v-if="store.loading" class="loading">updating…</span>
+        <span v-if="store.error" class="err">{{ store.error }}</span>
       </div>
     </div>
 
-    <!-- ===== Adhoc filter builder ===== -->
-    <div class="adhoc">
-      <span class="adhoc-label">Ad-hoc filters:</span>
+    <!-- ===== Adhoc filter rows ===== -->
+    <div class="adhoc" v-if="store.adhoc.length">
       <div class="adhoc-row" v-for="(a, i) in store.adhoc" :key="i">
         <select class="inp sm" v-model="a.field"><option v-for="f in adhocFields" :key="f" :value="f">{{ f }}</option></select>
         <select class="inp xs" v-model="a.op"><option v-for="o in adhocOps" :key="o" :value="o">{{ o }}</option></select>
         <input class="inp sm" v-model="a.value" placeholder="value" @keyup.enter="store.applyAdhoc()" />
         <button class="btn xs" @click="store.removeAdhoc(i)">✕</button>
       </div>
-      <button class="btn sm" @click="store.addAdhoc()">+ add</button>
-      <button class="btn sm apply" v-if="store.adhoc.length" @click="store.applyAdhoc()">apply</button>
-      <span v-if="store.loading" class="loading">updating…</span>
-      <span v-if="store.error" class="err">{{ store.error }}</span>
+      <button class="btn sm apply" @click="store.applyAdhoc()">apply</button>
     </div>
 
     <template v-if="store.dashboard">
-      <!-- ===== Top row: Total + Events by year ===== -->
+      <!-- ===== Row 2: VAERS EVENTS | Total | Onset day ===== -->
       <div class="grid">
-        <div class="panel stat">
-          <div class="panel-title">Total</div>
-          <div class="stat-value">{{ store.dashboard.total.toLocaleString() }}</div>
+        <div class="panel c6"><div class="ptitle">VAERS EVENTS</div><div ref="yearEl" class="pbody"></div></div>
+        <div class="panel c2 stat">
+          <div class="ptitle">Total</div>
+          <div class="stat-value">{{ statVal(store.dashboard.total) }}</div>
           <div ref="sparkEl" class="spark"></div>
         </div>
-        <div class="panel span3">
-          <div class="panel-title">Vaccination Date</div>
-          <div ref="yearEl"></div>
-        </div>
+        <div class="panel c4"><div class="ptitle">Onset day</div><div ref="onsetEl" class="pbody"></div></div>
       </div>
 
-      <!-- ===== Middle row: Num vacc, Onset, Age, Reactions pie ===== -->
-      <div class="grid g4">
-        <div class="panel"><div class="panel-title">Num Vacc.</div><div ref="numVaxEl"></div></div>
-        <div class="panel"><div class="panel-title">Onset day</div><div ref="onsetEl"></div></div>
-        <div class="panel"><div class="panel-title">Age</div><div ref="ageEl"></div></div>
-        <div class="panel">
-          <div class="panel-title">Reactions</div>
-          <div class="pie-wrap">
-            <div ref="pieEl"></div>
-            <ul class="legend">
-              <li v-for="(r, i) in store.dashboard.reactions" :key="r.reaction">
-                <span class="dot" :style="{ background: pieColors[i % pieColors.length] }"></span>
-                {{ r.reaction }} <b>{{ fmt(r.count) }}</b>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Tables row ===== -->
-      <div class="grid g2">
-        <div class="panel">
-          <div class="panel-title">Vax Types</div>
+      <!-- ===== Row 3: Vax Types | Num Vacc. | Reactions | Age ===== -->
+      <div class="grid">
+        <div class="panel c3">
+          <div class="ptitle">Vax Types</div>
           <table class="tbl">
-            <thead><tr><th>VAX TYPE</th><th class="num">Count</th></tr></thead>
+            <thead><tr><th>VAX.TYPE</th><th class="num">Total</th></tr></thead>
             <tbody>
               <tr v-for="v in store.dashboard.vax_types" :key="v.vax_type">
-                <td>{{ v.vax_type }}</td><td class="num">{{ v.count.toLocaleString() }}</td>
+                <td>{{ v.vax_type }}</td><td class="num">{{ fmt(v.count) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="panel">
-          <div class="panel-title">Case details <span class="muted">({{ store.cases.total.toLocaleString() }} reports)</span></div>
+        <div class="panel c3"><div class="ptitle">Num Vacc.</div><div ref="numVaxEl" class="pbody"></div></div>
+        <div class="panel c2">
+          <div class="ptitle">Reactions</div>
+          <div class="pie-wrap">
+            <div ref="pieEl"></div>
+            <ul class="legend">
+              <li v-for="(r, i) in store.dashboard.reactions" :key="r.reaction">
+                <span class="dot" :style="{ background: palette[i % palette.length] }"></span>{{ r.reaction }}
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="panel c4"><div class="ptitle">Age (&lt;20)</div><div ref="ageEl" class="pbody"></div></div>
+      </div>
+
+      <!-- ===== Row 4: Case details ===== -->
+      <div class="grid">
+        <div class="panel c12">
+          <div class="ptitle">Case details <span class="muted">· {{ store.cases.total.toLocaleString() }} reports</span></div>
           <table class="tbl cases">
-            <thead><tr><th>DATE</th><th class="num">AGE</th><th class="num">#DAYS</th><th>DESC</th><th class="num">#VAX</th></tr></thead>
+            <thead><tr><th>DATE</th><th class="num">AGE</th><th class="num">#DAYS</th><th>DESC</th><th class="num">#VAX</th><th class="ctr">REPORTS</th></tr></thead>
             <tbody>
-              <tr v-for="row in store.cases.rows" :key="row.VAERS_ID">
-                <td>{{ row.VAX_DATE || '—' }}</td>
+              <tr v-for="row in store.cases.rows" :key="row.VAERS_ID" class="crow" @click="openCase(row.VAERS_ID)">
+                <td class="date">{{ row.VAX_DATE || '—' }}</td>
                 <td class="num">{{ row.AGE_YRS ?? '—' }}</td>
                 <td class="num">{{ row.NUMDAYS ?? '—' }}</td>
                 <td class="desc" :title="row.SHORT_SYMPTOM_TEXT">{{ row.SHORT_SYMPTOM_TEXT }}</td>
-                <td class="num vax" :style="vaxCellStyle(row.NUM_VAX)">{{ row.NUM_VAX }}</td>
+                <td class="num vax"><span class="vaxcell" :style="vaxCellStyle(row.NUM_VAX)">{{ row.NUM_VAX }}</span></td>
+                <td class="ctr">
+                  <span v-if="row.FOLLOWUP_COUNT > 0" class="fu" :title="`${row.FOLLOWUP_COUNT} follow-up report(s)`">
+                    +{{ row.FOLLOWUP_COUNT }} ↩
+                  </span>
+                  <span v-else class="muted">—</span>
+                </td>
               </tr>
-              <tr v-if="!store.cases.rows.length"><td colspan="5" class="muted center">no matching reports</td></tr>
+              <tr v-if="!store.cases.rows.length"><td colspan="6" class="muted center">no matching reports</td></tr>
             </tbody>
           </table>
           <div class="pager">
@@ -119,17 +113,22 @@
       </div>
     </template>
     <div v-else class="booting">Loading dashboard…</div>
+
+    <CaseModal v-if="openId" :vaers-id="openId" @close="openId = null" />
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue'
 import { useFilterStore } from '../stores/filterStore.js'
+import VaxTypeSelect from '../components/VaxTypeSelect.vue'
+import DateRange from '../components/DateRange.vue'
+import CaseModal from '../components/CaseModal.vue'
 import * as plots from '../utils/plots.js'
 
 const store = useFilterStore()
 const fmt = plots.fmt
-const pieColors = plots.PIE_COLORS
+const palette = plots.PALETTE
 
 const rateOptions = [100, 50, 10, 5, 2, 1]
 const adhocFields = ['STATE', 'SEX', 'DIED', 'HOSPITAL', 'L_THREAT', 'DISABLE', 'RECOVD', 'ER_VISIT',
@@ -138,15 +137,18 @@ const adhocFields = ['STATE', 'SEX', 'DIED', 'HOSPITAL', 'L_THREAT', 'DISABLE', 
 const adhocOps = ['=', '!=', '>', '<', '>=', '<=']
 
 const queryDraft = ref('')
+const openId = ref(null)
+const openCase = (id) => { openId.value = id }
 const yearEl = ref(null), numVaxEl = ref(null), onsetEl = ref(null), ageEl = ref(null)
 const pieEl = ref(null), sparkEl = ref(null)
 
-function put(el, node) { if (el) { el.replaceChildren(node) } }
+const statVal = (n) => (n >= 1e5 ? fmt(n) : n.toLocaleString())
+function put(el, node) { if (el) el.replaceChildren(node) }
 
 function render() {
   const d = store.dashboard
   if (!d) return
-  const w = (el) => (el?.clientWidth || 360)
+  const w = (el) => Math.max(el?.clientWidth || 320, 160)
   put(yearEl.value, plots.eventsByYear(d.events_by_year, w(yearEl.value)))
   put(numVaxEl.value, plots.numVax(d.num_vax, w(numVaxEl.value)))
   put(onsetEl.value, plots.onsetDays(d.onset_days, w(onsetEl.value)))
@@ -155,61 +157,82 @@ function render() {
   put(sparkEl.value, plots.sparkline(d.sparkline))
 }
 
+// #VAX cell: green(1-2) → amber → orange → red, matching Grafana thresholds.
 function vaxCellStyle(n) {
-  const a = Math.min((n || 0) / 8, 1)
-  return a > 0.12 ? { background: `rgba(224,47,68,${(a * 0.85).toFixed(2)})`, color: a > 0.5 ? '#fff' : '#d8d9da' } : {}
+  const bg = n >= 6 ? '#890f02' : n >= 5 ? '#bf1b00' : n >= 4 ? '#ef843c'
+    : n >= 3 ? '#e0b400' : ''
+  return bg ? { background: bg, color: '#fff' } : {}
 }
 
 function onReset() { queryDraft.value = ''; store.reset() }
 
 watch(() => store.dashboard, () => nextTick(render))
+let raf = null
 onMounted(async () => {
   await store.init()
   await nextTick(); render()
-  window.addEventListener('resize', () => nextTick(render))
+  window.addEventListener('resize', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => nextTick(render)) })
 })
 </script>
 
 <style scoped>
 .dash { color: #d8d9da; }
-.filterbar, .adhoc { background: #1f2126; border: 1px solid #2c2f36; border-radius: 4px; }
-.filterbar { display: flex; gap: 12px; padding: 12px; margin-bottom: 10px; flex-wrap: wrap; align-items: flex-end; }
-.fb-item { display: flex; flex-direction: column; gap: 4px; }
-.fb-item.grow { flex: 1 1 220px; }
-.fb-item label { font-size: 11px; color: #8e8e8e; text-transform: uppercase; letter-spacing: .3px; }
-.inp { background: #0b0c0e; color: #d8d9da; border: 1px solid #2c2f36; border-radius: 3px; padding: 6px 8px; font-size: 13px; }
-.inp.sm { width: 150px; } .inp.xs { width: 64px; }
+
+/* filter bar */
+.filterbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.fb-left, .fb-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.grp { display: flex; align-items: center; gap: 8px; }
+.lbl { color: #33b5e5; font-size: 12px; font-weight: 600; }
+.inp { background: #0b0c0e; color: #d8d9da; border: 1px solid #2c2f36; border-radius: 3px; padding: 6px 8px; font-size: 13px; color-scheme: dark; }
+.inp.query { width: 200px; } .inp.sm { width: 150px; } .inp.xs { width: 64px; }
+.inp:focus { outline: none; border-color: #33b5e5; box-shadow: 0 0 0 1px #33b5e5; }
+.plus { width: 30px; height: 30px; background: #2c3235; border: 1px solid #3a4147; color: #d8d9da; border-radius: 3px; cursor: pointer; font-size: 15px; }
+.plus:hover { background: #3a4147; }
 .btn { background: #2c3235; color: #d8d9da; border: 1px solid #3a4147; border-radius: 3px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
-.btn:hover { background: #3a4147; }
-.btn.xs { padding: 4px 8px; font-size: 12px; } .btn.sm { padding: 5px 10px; }
-.btn.apply { background: #3274d9; border-color: #3274d9; color: #fff; }
+.btn:hover { background: #3a4147; } .btn.xs { padding: 4px 8px; font-size: 12px; } .btn.sm { padding: 5px 10px; }
+.btn.apply { background: #33b5e5; border-color: #33b5e5; color: #06131a; font-weight: 600; }
 .btn:disabled { opacity: .4; cursor: default; }
-.adhoc { display: flex; gap: 8px; align-items: center; padding: 8px 12px; margin-bottom: 14px; flex-wrap: wrap; }
-.adhoc-label { font-size: 11px; color: #8e8e8e; text-transform: uppercase; }
-.adhoc-row { display: flex; gap: 4px; align-items: center; }
 .loading { color: #e0b400; font-size: 12px; } .err { color: #e02f44; font-size: 12px; }
-.grid { display: grid; gap: 10px; margin-bottom: 10px; grid-template-columns: repeat(4, 1fr); }
-.grid.g4 { grid-template-columns: repeat(4, 1fr); }
-.grid.g2 { grid-template-columns: 1fr 1fr; }
-.span3 { grid-column: span 3; } .stat { grid-column: span 1; }
-.panel { background: #1f2126; border: 1px solid #2c2f36; border-radius: 4px; padding: 10px 12px; min-width: 0; }
-.panel-title { font-size: 12px; color: #8e8e8e; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .3px; }
-.stat-value { font-size: 34px; font-weight: 700; color: #fff; line-height: 1.1; }
-.spark { margin-top: 8px; }
-.pie-wrap { display: flex; gap: 10px; align-items: center; }
-.pie-wrap > div:first-child { flex: 0 0 auto; }
-.legend { list-style: none; font-size: 11px; margin: 0; padding: 0; }
-.legend li { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
-.legend b { margin-left: auto; color: #fff; }
-.dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* adhoc rows */
+.adhoc { display: flex; gap: 8px; align-items: center; padding: 8px 10px; margin-bottom: 12px; flex-wrap: wrap; background: #1f2126; border: 1px solid #2c2f36; border-radius: 3px; }
+.adhoc-row { display: flex; gap: 4px; align-items: center; }
+
+/* grid */
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; margin-bottom: 8px; }
+.c2 { grid-column: span 2; } .c3 { grid-column: span 3; } .c4 { grid-column: span 4; }
+.c6 { grid-column: span 6; } .c12 { grid-column: span 12; }
+.panel { background: #141619; border: 1px solid #23262b; border-radius: 3px; padding: 8px 10px; min-width: 0; }
+.ptitle { text-align: center; font-size: 13px; color: #d8d9da; font-weight: 500; margin-bottom: 6px; }
+.pbody { overflow: hidden; }
+.stat { display: flex; flex-direction: column; }
+.stat-value { text-align: center; font-size: 30px; font-weight: 700; color: #fff; margin: 12px 0 4px; }
+.spark { margin-top: auto; }
+
+/* pie */
+.pie-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; width: 100%; font-size: 10px; }
+.legend li { display: flex; align-items: center; gap: 4px; color: #b8bcc2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+
+/* tables */
 .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
-.tbl th { text-align: left; color: #8e8e8e; font-weight: 600; border-bottom: 1px solid #2c2f36; padding: 5px 6px; }
-.tbl td { padding: 4px 6px; border-bottom: 1px solid #26282d; }
+.tbl th { text-align: left; color: #33b5e5; font-weight: 500; border-bottom: 1px solid #2c2f36; padding: 5px 6px; }
+.tbl td { padding: 4px 6px; border-bottom: 1px solid #1e2024; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
-.tbl.cases .desc { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b8bcc2; }
-.tbl .vax { font-weight: 700; border-radius: 2px; }
-.muted { color: #6b7078; } .center { text-align: center; }
-.pager { display: flex; gap: 10px; align-items: center; margin-top: 8px; font-size: 12px; }
+.tbl.cases .date { color: #33b5e5; white-space: nowrap; }
+.tbl.cases .desc { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c7cbd1; }
+.tbl.cases .crow { cursor: pointer; }
+.tbl.cases .crow:hover { background: #1c1f24; }
+.tbl .ctr { text-align: center; white-space: nowrap; }
+.fu { color: #e0b400; font-size: 11px; font-weight: 600; }
+.vaxcell { display: inline-block; min-width: 20px; padding: 1px 6px; border-radius: 2px; font-weight: 700; }
+.muted { color: #6b7078; font-weight: 400; } .center { text-align: center; }
+.pager { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 12px; }
 .booting { padding: 40px; text-align: center; color: #8e8e8e; }
-@media (max-width: 1100px) { .grid, .grid.g4 { grid-template-columns: repeat(2, 1fr); } .span3 { grid-column: span 2; } .grid.g2 { grid-template-columns: 1fr; } }
+
+@media (max-width: 1200px) {
+  .grid { grid-template-columns: repeat(6, 1fr); }
+  .c6, .c12 { grid-column: span 6; } .c4 { grid-column: span 6; } .c3 { grid-column: span 3; } .c2 { grid-column: span 2; }
+}
 </style>
