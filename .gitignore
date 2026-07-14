@@ -1,3 +1,7 @@
-
-/node_modules/
+node_modules/
 /vendor/
+/data/
+*.duckdb
+*.duckdb.wal
+*.log
+.DS_Store

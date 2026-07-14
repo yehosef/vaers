@@ -1,0 +1,17 @@
+{
+  "name": "vaers",
+  "version": "2.0.0",
+  "private": true,
+  "description": "VAERS adverse-events dashboard on DuckDB + Node (bun). Import pipeline + Express API + Vue frontend.",
+  "type": "module",
+  "scripts": {
+    "build": "bun pipeline/build.js",
+    "import": "bun pipeline/import.js",
+    "server": "cd server && npm start",
+    "web": "cd web && npm run dev"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "^1.3.4-alpha.27",
+    "iconv-lite": "^0.6.3"
+  }
+}

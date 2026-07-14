@@ -1,0 +1,32 @@
+{
+  "name": "vaers-dashboard-frontend",
+  "version": "1.0.0",
+  "description": "Vue 3 frontend for VAERS analytics dashboard with Observable Plot",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 8080"
+  },
+  "dependencies": {
+    "@observablehq/plot": "^0.6.15",
+    "axios": "^1.6.0",
+    "pinia": "^3.0.3",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.0",
+    "vite": "^5.0.0"
+  },
+  "keywords": [
+    "vaers",
+    "analytics",
+    "dashboard",
+    "vue3",
+    "observable-plot"
+  ],
+  "author": "VAERS Dashboard Team",
+  "license": "MIT"
+}
