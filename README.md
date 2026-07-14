@@ -155,8 +155,11 @@ bun pipeline/build.js --skip-import            # rebuild just the reports model 
 ```
 
 `--append` **replaces** a file's prior rows (matched by filename), so re-importing an updated
-year is idempotent — no full re-import needed. The single **`AllVAERSDataCSVS.zip`** ("All
-Years", ~560 MB) is one captcha for the entire history.
+year is idempotent. Caveats: pass **all three** of that year's files (DATA/VAX/SYMPTOMS)
+together — a data-only append leaves NUM_VAX/VAX_TYPES stale — and it's meant for refreshing
+the **current** year within the same data vintage. **When in doubt, the full `setup.js`
+rebuild is always correct** (it starts from a clean database). The single
+**`AllVAERSDataCSVS.zip`** ("All Years", ~560 MB) is one captcha for the entire history.
 
 ## About the data
 

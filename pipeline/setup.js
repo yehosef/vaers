@@ -58,6 +58,9 @@ async function main() {
     console.error(`  This file is stored in git LFS — run \`git lfs pull\` to fetch it.`);
     process.exit(1);
   }
+  // Start from a clean extraction dir so stray/renamed CSVs from a previous run
+  // don't get imported alongside the fresh bundle (silent duplicate years).
+  fs.rmSync(rawDir, { recursive: true, force: true });
   fs.mkdirSync(rawDir, { recursive: true });
 
   console.log('▶ 1/3  Unzipping the all-years bundle');

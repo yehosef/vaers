@@ -34,7 +34,13 @@ async function main() {
   const t0 = Date.now();
 
   if (!skipImport) {
-    console.log('▶ Step 1/2 — importing raw CSVs');
+    // A full (non-append) build imports into EMPTY tables. Delete any existing DB
+    // first — otherwise plain INSERTs collide with the primary key, import.js
+    // reports failures, and the model rebuilds over stale data (silent no-op).
+    for (const f of [dbPath, `${dbPath}.wal`]) {
+      if (fs.existsSync(f)) { fs.rmSync(f, { force: true }); console.log(`  removed existing ${f}`); }
+    }
+    console.log('▶ Step 1/2 — importing raw CSVs (fresh DB)');
     const r = spawnSync(
       'bun',
       [path.join(__dirname, 'import.js'), '--raw-dir', rawDir, '--db-path', dbPath, '--clean-dir', cleanDir],

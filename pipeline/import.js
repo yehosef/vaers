@@ -138,6 +138,10 @@ function cleanAndConvert(srcPath, dstPath) {
 async function importOne(conn, cleanPath, fileName, tableName, append) {
   const domestic = isDomesticFile(fileName);
   const nonDom = isNonDomestic(fileName);
+  // Canonicalize the stored FILE_NAME so a case/rename drift (2026VAERSData.csv vs
+  // 2026VAERSDATA.csv, browser "(1)" copies) can't defeat the append DELETE and
+  // silently duplicate a whole year.
+  const canonName = fileName.toUpperCase();
   const tmp = `temp_${tableName}_${process.pid}_${Math.abs(hashCode(fileName))}`;
 
   const readOpts = nonDom
@@ -148,7 +152,7 @@ async function importOne(conn, cleanPath, fileName, tableName, append) {
   await conn.run(`
     CREATE TEMP TABLE ${tmp} AS
     SELECT *,
-      '${sqlPath(fileName)}' AS FILE_NAME,
+      '${sqlPath(canonName)}' AS FILE_NAME,
       row_number() OVER () AS FILE_LINE_NO,
       ${domestic ? 'true' : 'false'} AS IS_DOMESTIC
     FROM read_csv_auto('${sqlPath(cleanPath)}', ${readOpts})
@@ -180,12 +184,15 @@ async function importOne(conn, cleanPath, fileName, tableName, append) {
   // Ensure target table exists.
   await conn.run(`CREATE TABLE IF NOT EXISTS ${tableName} (${SCHEMAS[tableName]})`);
 
-  // In --append mode, re-importing a file replaces its prior rows (idempotent,
-  // and handles re-downloading an existing year that grew — e.g. a refreshed file).
-  if (append) {
-    await conn.run(`DELETE FROM ${tableName} WHERE FILE_NAME = '${sqlPath(fileName)}'`);
+  // Guard: in --append a file that parsed to 0 rows must NOT wipe the existing
+  // year (a truncated/corrupt re-download shouldn't silently empty it).
+  if (append && importCount === 0) {
+    console.warn(`\n  ⚠ ${fileName}: parsed 0 rows — leaving existing rows in place (not replaced)`);
+    await conn.run(`DROP TABLE IF EXISTS ${tmp}`);
+    return { imported: 0, rejected };
   }
 
+  let insertSql = null;
   if (importCount > 0) {
     const cols = EXPECTED_COLUMNS[tableName];
     // Post-May-2025 files carry a trailing ORDER column = report sequence per
@@ -193,19 +200,28 @@ async function importOne(conn, cleanPath, fileName, tableName, append) {
     const tempCols = (await conn.runAndReadAll(`DESCRIBE ${tmp}`)).getRowObjects().map((r) => r.column_name);
     const orderExpr = tempCols.includes('ORDER')
       ? `COALESCE(TRY_CAST("ORDER" AS INTEGER), 1)` : `1`;
-
     const targetMeta = ['REPORT_ORDER', 'IS_DOMESTIC', 'FILE_NAME', 'FILE_LINE_NO'];
     const sourceMeta = [orderExpr, 'IS_DOMESTIC', 'FILE_NAME', 'FILE_LINE_NO'];
     const columnList = [...cols, ...targetMeta].join(', ');
-
     const baseSelect = nonDom
       ? cols.map((c) => (DATE_COLUMNS.includes(c)
           ? `TRY_CAST(strptime(${c}, '%m/%d/%Y') AS DATE) AS ${c}` : c))
       : cols.slice();
     const selectList = [...baseSelect, ...sourceMeta].join(', ');
+    insertSql = `INSERT INTO ${tableName} (${columnList}) SELECT ${selectList} FROM ${tmp}`;
+  }
 
-    const verb = append ? 'INSERT OR IGNORE INTO' : 'INSERT INTO';
-    await conn.run(`${verb} ${tableName} (${columnList}) SELECT ${selectList} FROM ${tmp}`);
+  // Atomic replace: a file's DELETE + INSERT run in one transaction, so a failure
+  // can't leave the year deleted-but-not-reinserted. Plain INSERT (no OR IGNORE)
+  // so a real PK collision surfaces loudly instead of silently dropping rows.
+  await conn.run('BEGIN TRANSACTION');
+  try {
+    if (append) await conn.run(`DELETE FROM ${tableName} WHERE FILE_NAME = '${sqlPath(canonName)}'`);
+    if (insertSql) await conn.run(insertSql);
+    await conn.run('COMMIT');
+  } catch (e) {
+    await conn.run('ROLLBACK').catch(() => {});
+    throw e;
   }
 
   await conn.run(`DROP TABLE IF EXISTS ${tmp}`);
@@ -268,6 +284,7 @@ async function main() {
 
   let totalImported = 0;
   let totalRejected = 0;
+  const failed = [];
 
   for (const raw of csvFiles) {
     const fileName = path.basename(raw);
@@ -283,6 +300,7 @@ async function main() {
       ({ imported, rejected } = await importOne(conn, cleanPath, fileName, tableName, args.append));
     } catch (e) {
       console.log(`FAILED: ${e.message}`);
+      failed.push(fileName);
     }
     totalImported += imported;
     totalRejected += rejected;
@@ -309,6 +327,20 @@ async function main() {
 
   conn.closeSync();
   instance.closeSync();
+
+  // Fail loudly if any file failed — otherwise a partial import masquerades as
+  // success and the model gets rebuilt over missing data.
+  if (failed.length) {
+    console.error(`\n✖ ${failed.length} file(s) FAILED: ${failed.join(', ')}`);
+    console.error('  The database is INCOMPLETE — fix the input and re-run.');
+    process.exit(1);
+  }
+
+  // After an incremental --append, the derived reports model is stale.
+  if (args.append) {
+    console.warn('\n⚠ reports model is now STALE. Rebuild it before serving:');
+    console.warn('  bun pipeline/build.js --skip-import');
+  }
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
