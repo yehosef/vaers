@@ -6,5 +6,10 @@ node_modules/
 *.log
 .DS_Store
 
+# The ~560 MB all-years bundle is published as a GitHub Release asset, not stored
+# in git (it would exceed GitHub's free LFS quota). Fetched by pipeline/setup.js.
+datasets/AllVAERSDataCSVS.zip
+datasets/AllVAERSDataCSVS.zip.part
+
 # extracted from datasets/AllVAERSDataCSVS.zip by pipeline/setup.js
 datasets/VAERS/data/

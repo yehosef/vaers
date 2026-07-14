@@ -1,9 +1,10 @@
 # VAERS Dashboard (DuckDB + Node)
 
 An interactive dashboard over the U.S. **Vaccine Adverse Event Reporting System**
-([vaers.hhs.gov](https://vaers.hhs.gov/)). This repo ships all the source CSVs (via git LFS)
-and a self-contained stack — a DuckDB build pipeline, an Express API, and a Vue 3 dashboard —
-so you can rebuild the database and explore the data with one command and two servers.
+([vaers.hhs.gov](https://vaers.hhs.gov/)). The source data ships as a single bundle published
+as a [GitHub Release asset](https://github.com/yehosef/vaers/releases), and the repo holds a
+self-contained stack — a DuckDB build pipeline, an Express API, and a Vue 3 dashboard — so you
+can rebuild the database and explore the data with one command and two servers.
 
 It's a reboot of the original 2019 project (PHP → Elasticsearch 6 → Grafana, preserved in git
 history). The dashboard reproduces that Grafana experience: one shared filter context driving
@@ -20,8 +21,8 @@ Data currently covers **1990–2026 + NonDomestic**, all at one current vintage
 
 ```
 datasets/
-  AllVAERSDataCSVS.zip     the full 1990–present data bundle (git LFS, ~560 MB) — the ONLY
-                           data file in the repo; extracted locally by setup, never committed
+  AllVAERSDataCSVS.zip     the full 1990–present data bundle (~560 MB) — NOT in git; published
+                           as a GitHub Release asset, auto-downloaded + extracted by setup
   <YEAR>VAERSData.zip      optional: a fresher current-year bundle, applied over the top
   VAERS/data/              git-ignored — CSVs extracted from the zip(s) by setup
 pipeline/                  DuckDB build (bun)
@@ -34,19 +35,18 @@ web/                       Vue 3 + Vite + Observable Plot dashboard, port 3000
 data/                      git-ignored, generated: vaers.duckdb + cleaned/
 ```
 
-Only one data file is versioned — the zip bundle — so the repo stays small (fits GitHub's
-free LFS tier). Everything else is generated locally from it.
+No bulk data is committed — the ~560 MB bundle lives as a GitHub Release asset, so the git
+repo stays tiny. `setup.js` downloads the bundle on first run; everything else is generated
+locally from it.
 
 ## Quick start
 
 ```bash
-git lfs pull                      # fetch datasets/AllVAERSDataCSVS.zip (~560 MB)
-
 bun install                       # pipeline deps (root)
 cd server && npm install && cd ..
 cd web && npm install && cd ..
 
-bun pipeline/setup.js             # unzip the bundle + build the DB (~2–3 min, ~2.68M cases)
+bun pipeline/setup.js             # download + unzip the bundle + build the DB (~2.68M cases)
 
 cd server && npm start            # http://localhost:3001   (API)
 cd web && npm run dev             # http://localhost:3000   (dashboard; proxies /api → 3001)
@@ -59,7 +59,7 @@ Debian/Ubuntu). It reports the sizes it produced when done.
 
 | What | Size |
 |------|------|
-| `datasets/AllVAERSDataCSVS.zip` (in repo, LFS) | ~560 MB |
+| `datasets/AllVAERSDataCSVS.zip` (GitHub Release, auto-downloaded) | ~560 MB |
 | extracted CSVs (`datasets/VAERS/data/`, git-ignored) | ~2.6 GB |
 | `data/cleaned/` transcode cache (git-ignored, deletable) | ~2.6 GB |
 | `data/vaers.duckdb` (git-ignored) | ~9.3 GB |

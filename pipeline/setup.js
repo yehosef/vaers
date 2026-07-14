@@ -2,8 +2,9 @@
 /**
  * setup.js — one command to go from a fresh clone to a working dashboard database.
  *
- *   1. Unzip datasets/AllVAERSDataCSVS.zip (the full 1990-present bundle) into
- *      datasets/VAERS/data/.
+ *   1. Ensure datasets/AllVAERSDataCSVS.zip (the full 1990-present bundle) is
+ *      present — downloading it from the GitHub Release if missing — then unzip
+ *      it into datasets/VAERS/data/.
  *   2. Unzip any additional per-year bundles in datasets/ (e.g. 2026VAERSData.zip)
  *      OVER THE TOP — so a freshly-downloaded current-year file replaces the
  *      bundle's stale copy of that year.
@@ -26,6 +27,12 @@ const root = path.resolve(__dirname, '..');
 const datasetsDir = path.join(root, 'datasets');
 const rawDir = path.join(datasetsDir, 'VAERS', 'data');
 const bundle = path.join(datasetsDir, 'AllVAERSDataCSVS.zip');
+
+// The ~560 MB all-years bundle is NOT stored in git (it would blow past GitHub's
+// free LFS quota). It is published as a GitHub Release asset and fetched on demand.
+// Override with BUNDLE_URL to point at a mirror or a newer vintage.
+const BUNDLE_URL = process.env.BUNDLE_URL
+  || 'https://github.com/yehosef/vaers/releases/download/data-2026.07/AllVAERSDataCSVS.zip';
 
 function run(cmd, args) {
   const r = spawnSync(cmd, args, { stdio: 'inherit' });
@@ -54,9 +61,14 @@ async function main() {
   const t0 = Date.now();
 
   if (!fs.existsSync(bundle)) {
-    console.error(`✖ Missing ${path.relative(root, bundle)}.`);
-    console.error(`  This file is stored in git LFS — run \`git lfs pull\` to fetch it.`);
-    process.exit(1);
+    console.log(`▶ 0/3  Bundle not found locally — downloading from the GitHub Release`);
+    console.log(`       ${BUNDLE_URL}`);
+    // Download to a temp path then rename, so an interrupted download never
+    // leaves a truncated file that looks complete on the next run.
+    const tmp = `${bundle}.part`;
+    fs.rmSync(tmp, { force: true });
+    run('curl', ['-fL', '--retry', '3', '-o', tmp, BUNDLE_URL]);
+    fs.renameSync(tmp, bundle);
   }
   // Start from a clean extraction dir so stray/renamed CSVs from a previous run
   // don't get imported alongside the fresh bundle (silent duplicate years).
