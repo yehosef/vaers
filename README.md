@@ -181,5 +181,12 @@ report is **not** proof a vaccine caused an event. See the VAERS Data Use Guide 
 for official disclaimers. Known quirks: onset dates before vaccination dates, missing NUMDAYS,
 reports without a VAX_DATE, vague free-text.
 
+## License
+
+Code: **BSD 3-Clause** — see [LICENSE](LICENSE). The VAERS data itself is a U.S. government
+public-domain dataset and is not covered by that license; the bundle is redistributed as
+published by [vaers.hhs.gov](https://vaers.hhs.gov/), and the derived `reports` model is
+described under [Data manipulations](#data-manipulations).
+
 ---
 Original project & data curation: Yehosef Shapiro (yehosef at gmail).
