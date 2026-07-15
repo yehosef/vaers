@@ -29,7 +29,7 @@ the Grafana original.
 ## Quick start
 
 > ### ⚠️ Disk space
-> This needs **~15 GB free while building**, settling at **~10 GB** once done (9.0 GB database
+> This needs **~15 GB free while building**, settling at **~10 GB** once done (~9.3 GB database
 > + the 560 MB bundle). The clone itself is only ~10 MB — the data is downloaded, not committed.
 > Setup deletes the extracted CSVs and transcode cache (~5 GB of scratch) after the build;
 > pass `--keep-csvs` to `bun run setup` to keep them.
@@ -42,7 +42,7 @@ install unzip` on Debian/Ubuntu). The data is a
 
 ```bash
 bun install
-bun run setup          # downloads the bundle → data/vaers.duckdb  (~9 GB, a few minutes)
+bun run setup          # downloads the bundle → data/vaers.duckdb  (~9 GB, ~15-20 min)
 ```
 
 That's the whole build. Query it with anything that speaks DuckDB — no server, no Node:
@@ -68,8 +68,9 @@ Tables: **`reports`** (one row per case, derived + cleaned — see
 bun run dev            # → http://localhost:3000   (Ctrl-C stops both servers)
 ```
 
-Installs deps, runs the build above if the database isn't there yet, then starts the API and the
-dashboard together. After the first run it starts instantly.
+Installs deps, runs the build above if the database isn't there yet (so a first run from a fresh
+clone takes the ~15-20 minutes noted above), then starts the API and the dashboard together.
+Once the database exists it starts in seconds.
 
 <details>
 <summary>Run the two servers separately</summary>
