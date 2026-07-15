@@ -9,7 +9,9 @@
  *      OVER THE TOP — so a freshly-downloaded current-year file replaces the
  *      bundle's stale copy of that year.
  *   3. Run the full build (import every CSV + build the reports model).
- *   4. Report the size of what was extracted and created.
+ *   4. Delete the extracted CSVs + transcode cache (~5 GB of scratch that is
+ *      re-extractable from the kept bundle) — pass --keep-csvs to hold onto them.
+ *   5. Report the size of what was created.
  *
  * Monthly update: drop a fresh <YEAR>VAERSData.zip into datasets/ and re-run
  * `bun pipeline/setup.js` (or, faster, import just that file — see the README).
@@ -33,6 +35,10 @@ const bundle = path.join(datasetsDir, 'AllVAERSDataCSVS.zip');
 // Override with BUNDLE_URL to point at a mirror or a newer vintage.
 const BUNDLE_URL = process.env.BUNDLE_URL
   || 'https://github.com/yehosef/vaers/releases/download/data-2026.07/AllVAERSDataCSVS.zip';
+
+// By default the extracted CSVs + transcode cache are deleted once the database is
+// built (~5 GB of scratch, re-extractable from the bundle). --keep-csvs opts out.
+const keepCsvs = process.argv.includes('--keep-csvs');
 
 function run(cmd, args) {
   const r = spawnSync(cmd, args, { stdio: 'inherit' });
@@ -89,12 +95,26 @@ async function main() {
   console.log('\n▶ 2/3  Building the database (import + reports model)');
   run('bun', [path.join(root, 'pipeline', 'build.js')]);
 
-  console.log('\n▶ 3/3  Done. Sizes:');
+  // The extracted CSVs and the transcode cache are pure scratch once the database
+  // exists — together ~5 GB. Reclaim them by default; they are re-extracted from
+  // the (kept) bundle on the next `setup.js` run. Pass --keep-csvs to hold onto
+  // them, e.g. to re-run build.js directly without re-extracting.
+  const cleanDir = path.join(root, 'data', 'cleaned');
+  const scratch = pathSize(rawDir) + pathSize(cleanDir);
+  if (keepCsvs) {
+    console.log(`\n▶ 3/3  Keeping extracted CSVs + transcode cache (--keep-csvs, ${humanSize(scratch)}).`);
+  } else {
+    console.log(`\n▶ 3/3  Reclaiming ${humanSize(scratch)} of scratch (extracted CSVs + transcode cache)`);
+    fs.rmSync(rawDir, { recursive: true, force: true });
+    fs.rmSync(cleanDir, { recursive: true, force: true });
+  }
+
+  console.log('\n   Done. Sizes:');
   const rows = [
     ['bundle (datasets/AllVAERSDataCSVS.zip)', pathSize(bundle)],
     ['extracted CSVs (datasets/VAERS/data)', pathSize(rawDir)],
     ['database (data/vaers.duckdb)', pathSize(path.join(root, 'data', 'vaers.duckdb'))],
-    ['transcode cache (data/cleaned)', pathSize(path.join(root, 'data', 'cleaned'))],
+    ['transcode cache (data/cleaned)', pathSize(cleanDir)],
   ];
   for (const [label, bytes] of rows) console.log(`   ${humanSize(bytes).padStart(9)}  ${label}`);
   console.log(`\n✓ Setup complete in ${((Date.now() - t0) / 1000).toFixed(0)}s. Start the app:`);

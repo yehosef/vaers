@@ -197,17 +197,44 @@ async function importOne(conn, cleanPath, fileName, tableName, append) {
     const cols = EXPECTED_COLUMNS[tableName];
     // Post-May-2025 files carry a trailing ORDER column = report sequence per
     // VAERS_ID (1 = primary, >1 = secondary/follow-up). Older files lack it → 1.
-    const tempCols = (await conn.runAndReadAll(`DESCRIBE ${tmp}`)).getRowObjects().map((r) => r.column_name);
+    const tempRows = (await conn.runAndReadAll(`DESCRIBE ${tmp}`)).getRowObjects();
+    const tempCols = tempRows.map((r) => r.column_name);
+    const tempTypes = Object.fromEntries(
+      tempRows.map((r) => [r.column_name, String(r.column_type).toUpperCase()])
+    );
     const orderExpr = tempCols.includes('ORDER')
       ? `COALESCE(TRY_CAST("ORDER" AS INTEGER), 1)` : `1`;
     const targetMeta = ['REPORT_ORDER', 'IS_DOMESTIC', 'FILE_NAME', 'FILE_LINE_NO'];
     const sourceMeta = [orderExpr, 'IS_DOMESTIC', 'FILE_NAME', 'FILE_LINE_NO'];
     const columnList = [...cols, ...targetMeta].join(', ');
-    const baseSelect = nonDom
-      ? cols.map((c) => (DATE_COLUMNS.includes(c)
-          ? `TRY_CAST(strptime(${c}, '%m/%d/%Y') AS DATE) AS ${c}` : c))
-      : cols.slice();
+    // Never trust the CSV sniffer to type a date column. It infers from what it
+    // samples, so a column that is almost entirely empty lands on VARCHAR (2016's
+    // TODAYS_DATE holds 4 values in 50,712 rows) — and the INSERT would then cast
+    // those MM/DD/YYYY strings with the default ISO format and fail the whole file.
+    // Parse explicitly off the type the temp table actually has.
+    const dateSelect = (c) => {
+      const t = tempTypes[c] || '';
+      if (t === 'DATE') return c;
+      if (t.startsWith('TIMESTAMP')) return `CAST(${c} AS DATE) AS ${c}`;
+      return `TRY_CAST(strptime(CAST(${c} AS VARCHAR), '%m/%d/%Y') AS DATE) AS ${c}`;
+    };
+    const baseSelect = cols.map((c) => (DATE_COLUMNS.includes(c) ? dateSelect(c) : c));
     const selectList = [...baseSelect, ...sourceMeta].join(', ');
+
+    // The strptime fallback above uses TRY_CAST, which turns an unparseable value
+    // into NULL. Count those so a real format drift is reported instead of quietly
+    // emptying a column.
+    for (const c of cols) {
+      if (!DATE_COLUMNS.includes(c)) continue;
+      if (tempTypes[c] === 'DATE' || (tempTypes[c] || '').startsWith('TIMESTAMP')) continue;
+      const q = await conn.runAndReadAll(`
+        SELECT COUNT(*)::BIGINT AS c FROM ${tmp}
+        WHERE ${c} IS NOT NULL
+          AND TRY_CAST(strptime(CAST(${c} AS VARCHAR), '%m/%d/%Y') AS DATE) IS NULL
+      `);
+      const bad = Number(q.getRowObjects()[0].c);
+      if (bad > 0) console.warn(`\n  ⚠ ${fileName}: ${bad} unparseable ${c} value(s) → NULL`);
+    }
     insertSql = `INSERT INTO ${tableName} (${columnList}) SELECT ${selectList} FROM ${tmp}`;
   }
 

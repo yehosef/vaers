@@ -30,8 +30,10 @@ That's it — it installs deps, downloads the ~560 MB data bundle, builds the da
 starts both servers. First run takes a few minutes; after that it's instant.
 
 **Needs:** [Bun](https://bun.sh), Node, the `unzip` CLI (preinstalled on macOS; `apt-get install
-unzip` on Debian/Ubuntu), and **~15 GB free disk** (2.6 GB CSVs + 2.6 GB scratch cache + 9.3 GB
-database; `data/cleaned/` is deletable afterward).
+unzip` on Debian/Ubuntu), and **~15 GB free disk during the build**, settling at **~10 GB**
+(9.3 GB database + the 560 MB bundle). Setup deletes the extracted CSVs and transcode cache
+(~5 GB of scratch) once the database is built — re-extracted from the bundle if you rebuild.
+Pass `--keep-csvs` to `bun run setup` to keep them.
 
 The data is **not in git** — it's a [Release asset](https://github.com/yehosef/vaers/releases),
 so the clone stays ~10 MB. Set `BUNDLE_URL` to override the source.
