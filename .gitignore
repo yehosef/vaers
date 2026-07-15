@@ -1,6 +1,9 @@
 node_modules/
 /vendor/
 /data/
+
+# local working notes (session state, code-review transcripts)
+.claude/
 *.duckdb
 *.duckdb.wal
 *.log

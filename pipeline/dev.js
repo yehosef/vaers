@@ -44,11 +44,34 @@ for (const app of ['server', 'web']) {
 }
 
 // 2. Data -------------------------------------------------------------------
-if (!fs.existsSync(db)) {
-  console.log('▶ No database yet — running setup (download bundle + build)…');
-  sh('bun', [path.join(root, 'pipeline', 'setup.js')], root);
-} else {
+// A failed build leaves a database file behind that is missing the `reports`
+// model, so "the file exists" is not good enough to serve from — check that the
+// model is actually populated, otherwise rebuild.
+async function dbIsUsable(p) {
+  if (!fs.existsSync(p)) return false;
+  try {
+    const { DuckDBInstance } = await import('@duckdb/node-api');
+    const instance = await DuckDBInstance.create(p, { access_mode: 'READ_ONLY' });
+    const conn = await instance.connect();
+    const res = await conn.runAndReadAll('SELECT count(*)::BIGINT AS c FROM reports');
+    const rows = Number(res.getRowObjects()[0].c);
+    conn.closeSync?.();
+    instance.closeSync?.();
+    return rows > 0;
+  } catch {
+    return false; // no reports table / unreadable → treat as incomplete
+  }
+}
+
+if (await dbIsUsable(db)) {
   console.log(`▶ Using existing database (${(fs.statSync(db).size / 1073741824).toFixed(1)} GB).`);
+} else {
+  console.log(
+    fs.existsSync(db)
+      ? '▶ Database is incomplete (no reports model) — rebuilding…'
+      : '▶ No database yet — running setup (download bundle + build)…'
+  );
+  sh('bun', [path.join(root, 'pipeline', 'setup.js')], root);
 }
 
 // 3. Servers ----------------------------------------------------------------

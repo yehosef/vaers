@@ -1,8 +1,14 @@
-# VAERS Dashboard (DuckDB + Node)
+# VAERS — DuckDB build + dashboard
 
-An interactive dashboard over the U.S. **Vaccine Adverse Event Reporting System**
-([vaers.hhs.gov](https://vaers.hhs.gov/)) — a DuckDB build pipeline, an Express API, and a Vue 3
-dashboard. Covers **1990–2026 + NonDomestic** (~2.68M cases) at one current vintage.
+Two independent things over the U.S. **Vaccine Adverse Event Reporting System**
+([vaers.hhs.gov](https://vaers.hhs.gov/)):
+
+1. **Build** — turn VAERS's raw yearly CSVs into **one queryable DuckDB file**: transcoded,
+   cleaned, and deduplicated into cases. Query it from SQL, pandas, or R — no server involved.
+2. **Serve** — an Express API + Vue 3 dashboard over that file.
+
+You can stop after the build; for many people the database *is* the useful part. Covers
+**1990–2026 + NonDomestic** (~2.73M cases) at one current vintage.
 
 ![Original Grafana dashboard](media/VAERS-ES-Grafana.gif)
 
@@ -22,28 +28,54 @@ the Grafana original.
 
 ## Quick start
 
+> ### ⚠️ Disk space
+> This needs **~15 GB free while building**, settling at **~10 GB** once done (9.0 GB database
+> + the 560 MB bundle). The clone itself is only ~10 MB — the data is downloaded, not committed.
+> Setup deletes the extracted CSVs and transcode cache (~5 GB of scratch) after the build;
+> pass `--keep-csvs` to `bun run setup` to keep them.
+
+**Needs:** [Bun](https://bun.sh), Node, and the `unzip` CLI (preinstalled on macOS; `apt-get
+install unzip` on Debian/Ubuntu). The data is a
+[Release asset](https://github.com/yehosef/vaers/releases); set `BUNDLE_URL` to override it.
+
+### 1. Build — just the database
+
+```bash
+bun install
+bun run setup          # downloads the bundle → data/vaers.duckdb  (~9 GB, a few minutes)
+```
+
+That's the whole build. Query it with anything that speaks DuckDB — no server, no Node:
+
+```bash
+duckdb data/vaers.duckdb "SELECT VAX_TYPE, count(*) FROM reports_vax GROUP BY 1 ORDER BY 2 DESC LIMIT 5"
+```
+
+```python
+import duckdb
+con = duckdb.connect('data/vaers.duckdb', read_only=True)
+con.sql("SELECT AGE_YRS, REACTIONS FROM reports WHERE list_contains(REACTIONS, 'DIED')")
+```
+
+Tables: **`reports`** (one row per case, derived + cleaned — see
+[Data manipulations](#data-manipulations)), **`reports_vax`** (case ↔ vaccine pairs),
+**`vaersdata`/`vaersvax`/`vaerssymptoms`** (the raw CSVs, untouched), and **`import_summary`** /
+**`vaers_reject_errors`** (what was ingested, and which rows VAERS's own CSVs got rejected on).
+
+### 2. Serve — the dashboard
+
 ```bash
 bun run dev            # → http://localhost:3000   (Ctrl-C stops both servers)
 ```
 
-That's it — it installs deps, downloads the ~560 MB data bundle, builds the database, and
-starts both servers. First run takes a few minutes; after that it's instant.
-
-**Needs:** [Bun](https://bun.sh), Node, the `unzip` CLI (preinstalled on macOS; `apt-get install
-unzip` on Debian/Ubuntu), and **~15 GB free disk during the build**, settling at **~10 GB**
-(9.3 GB database + the 560 MB bundle). Setup deletes the extracted CSVs and transcode cache
-(~5 GB of scratch) once the database is built — re-extracted from the bundle if you rebuild.
-Pass `--keep-csvs` to `bun run setup` to keep them.
-
-The data is **not in git** — it's a [Release asset](https://github.com/yehosef/vaers/releases),
-so the clone stays ~10 MB. Set `BUNDLE_URL` to override the source.
+Installs deps, runs the build above if the database isn't there yet, then starts the API and the
+dashboard together. After the first run it starts instantly.
 
 <details>
-<summary>Manual steps / individual commands</summary>
+<summary>Run the two servers separately</summary>
 
 ```bash
-bun install && (cd server && npm install) && (cd web && npm install)
-bun run setup     # download + unzip the bundle + build the DB
+(cd server && npm install) && (cd web && npm install)
 bun run server    # http://localhost:3001   (API)
 bun run web       # http://localhost:3000   (dashboard; proxies /api → 3001)
 ```
@@ -62,7 +94,7 @@ table. **Click any row** for a modal with the primary report plus every follow-u
 - **Query**: all-digits = exact VAERS_ID (zero-padding agnostic — `25006` finds `0025006`);
   text searches the narrative.
 - **Ad-hoc filters** adapt per field: low-cardinality fields (STATE, SEX, `FOLLOWUP_COUNT`) get
-  a dropdown; wide numerics (AGE_YRS) get a range. E.g. `FOLLOWUP_COUNT > 0` surfaces the ~60k
+  a dropdown; wide numerics (AGE_YRS) get a range. E.g. `FOLLOWUP_COUNT > 0` surfaces the ~68k
   multi-report cases.
 - **rate** scales counts by `100 / rate` to simulate underreporting (VAERS captures an
   estimated 1–10% of events).
@@ -99,11 +131,17 @@ from the original 2019 PHP importer, in `pipeline/sql/build_reports.sql`):
 ## Layout
 
 ```
-pipeline/   DuckDB build (bun): dev.js · setup.js · import.js · build.js · sql/
-server/     Express API over DuckDB, port 3001
-web/        Vue 3 + Vite + Observable Plot, port 3000
-datasets/   bundle + extracted CSVs (git-ignored)
-data/       generated: vaers.duckdb + cleaned/ (git-ignored)
+BUILD
+  pipeline/setup.js   download bundle → extract → build → reclaim scratch
+  pipeline/import.js  windows-1252 → UTF-8 transcode + read_csv into the raw tables
+  pipeline/build.js   import every CSV + build the reports model
+  pipeline/sql/       build_reports.sql — the derived `reports` / `reports_vax` model
+SERVE
+  server/             Express API over DuckDB, port 3001
+  web/                Vue 3 + Vite + Observable Plot, port 3000
+  pipeline/dev.js     build-if-needed, then run both of the above together
+datasets/             bundle + extracted CSVs (git-ignored)
+data/                 generated: vaers.duckdb + cleaned/ (git-ignored)
 ```
 
 ## API

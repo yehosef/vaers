@@ -269,6 +269,9 @@ async function main() {
 
   if (!fs.existsSync(args.rawDir)) {
     console.error(`Raw directory not found: ${args.rawDir}`);
+    // setup.js reclaims the extracted CSVs once the database is built, so this is
+    // the expected state after a normal setup — point at the command that restores them.
+    console.error(`Run \`bun run setup\` to re-extract the CSVs from the bundle and rebuild.`);
     process.exit(1);
   }
   fs.mkdirSync(args.cleanDir, { recursive: true });
