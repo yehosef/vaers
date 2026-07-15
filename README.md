@@ -4,11 +4,21 @@ An interactive dashboard over the U.S. **Vaccine Adverse Event Reporting System*
 ([vaers.hhs.gov](https://vaers.hhs.gov/)) — a DuckDB build pipeline, an Express API, and a Vue 3
 dashboard. Covers **1990–2026 + NonDomestic** (~2.68M cases) at one current vintage.
 
-It reboots the original 2019 project (PHP → Elasticsearch → Grafana, still in git history) and
-reproduces that Grafana UX: one filter context driving eight linked panels, plus a drill-down
-into each case's report history.
-
 ![Original Grafana dashboard](media/VAERS-ES-Grafana.gif)
+
+## Background
+
+VAERS publishes its data as raw yearly CSVs — useful, but awkward to explore. The original 2019
+project (still in git history) made it explorable by loading the CSVs into Elasticsearch and
+putting Grafana on top. That worked, but it meant running two heavyweight services, and the
+setup drifted out of reproducibility as the data grew.
+
+This 2026 reboot keeps that dashboard experience and drops the infrastructure: DuckDB reads the
+CSVs directly, so the whole stack is a build script, an API, and a frontend — one command, no
+services to operate. The goals are **reproducibility** (any clone rebuilds the identical DB from
+one published bundle), **honest counting** (VAERS's 2025 follow-up reports are collapsed into
+cases so nothing is double-counted — see below), and keeping the fast, linked-panel filtering of
+the Grafana original.
 
 ## Quick start
 
