@@ -10,14 +10,19 @@ Two independent things over the U.S. **Vaccine Adverse Event Reporting System**
 You can stop after the build; for many people the database *is* the useful part. Covers
 **1990–2026 + NonDomestic** (~2.73M cases) at one current vintage.
 
-![Original Grafana dashboard](media/VAERS-ES-Grafana.gif)
+![The VAERS dashboard](media/dashboard.png)
 
 ## Background
 
 VAERS publishes its data as raw yearly CSVs — useful, but awkward to explore. The original 2019
-project (still in git history) made it explorable by loading the CSVs into Elasticsearch and
-putting Grafana on top. That worked, but it meant running two heavyweight services, and the
-setup drifted out of reproducibility as the data grew.
+project made it explorable by loading the CSVs into Elasticsearch and putting Grafana on top.
+That worked, but it meant running two heavyweight services, and the setup drifted out of
+reproducibility as the data grew.
+
+![The original Elasticsearch + Grafana dashboard, 2019](media/VAERS-ES-Grafana.gif)
+
+*The 2019 original (PHP → Elasticsearch → Grafana), still in git history — the behavioral target
+this rewrite reproduces.*
 
 This 2026 reboot keeps that dashboard experience and drops the infrastructure: DuckDB reads the
 CSVs directly, so the whole stack is a build script, an API, and a frontend — one command, no
@@ -99,6 +104,15 @@ table. **Click any row** for a modal with the primary report plus every follow-u
   multi-report cases.
 - **rate** scales counts by `100 / rate` to simulate underreporting (VAERS captures an
   estimated 1–10% of events).
+
+![Selecting a VAX TYPE](media/dashboard-vaxtype-select.png)
+
+*VAX TYPE is a multi-select with type-to-filter — typing `COVID` narrows to COVID19/COVID19-2.*
+
+![Filtered to COVID19](media/dashboard-covid19.png)
+
+*Picking COVID19 reloads all eight panels: 2.73M → 1.63M cases, events collapse to 2020+, the
+age profile shifts to adults, and Vax Types now lists what was co-administered.*
 
 ## Data model — cases, not report submissions
 
