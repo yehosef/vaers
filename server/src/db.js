@@ -1,4 +1,4 @@
-// DuckDB access layer — single READ_ONLY connection, bound params, JS-normalized rows.
+// DuckDB access layer — READ_ONLY connection pool, bound params, JS-normalized rows.
 import { DuckDBInstance } from '@duckdb/node-api';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,15 +18,41 @@ function resolveDbPath() {
 }
 
 let instance = null;
-let connection = null;
 let dbPath = null;
+
+// A DuckDB connection runs one statement at a time — sharing a single connection
+// across concurrent requests intermittently fails with "Failed to execute prepared
+// statement". The dashboard fires /api/dashboard and /api/cases in parallel on
+// every load, which is exactly that case, so hand each query its own connection
+// from a small pool. The database is READ_ONLY, so extra connections are cheap
+// and give real parallelism.
+const POOL_SIZE = Math.max(2, Number(process.env.VAERS_DB_POOL) || 4);
+let allConnections = [];   // every connection, for shutdown
+let idle = [];             // connections free right now
+let waiters = [];          // resolvers waiting for a connection
 
 export async function initDb() {
   dbPath = resolveDbPath();
   instance = await DuckDBInstance.create(dbPath, { access_mode: 'READ_ONLY' });
-  connection = await instance.connect();
-  console.log(`📊 Connected (READ_ONLY): ${dbPath}`);
+  allConnections = await Promise.all(
+    Array.from({ length: POOL_SIZE }, () => instance.connect())
+  );
+  idle = [...allConnections];
+  waiters = [];
+  console.log(`📊 Connected (READ_ONLY, pool of ${POOL_SIZE}): ${dbPath}`);
   return dbPath;
+}
+
+function acquire() {
+  const conn = idle.pop();
+  if (conn) return Promise.resolve(conn);
+  return new Promise((resolve) => waiters.push(resolve)); // all busy — queue
+}
+
+function release(conn) {
+  const next = waiters.shift();
+  if (next) next(conn);
+  else idle.push(conn);
 }
 
 export function getDbPath() { return dbPath; }
@@ -51,9 +77,14 @@ function normalizeRow(row) {
 
 // Run a query with positional ($1,$2,...) params; return normalized row objects.
 export async function all(sql, params = []) {
-  if (!connection) throw new Error('DB not initialized');
-  const reader = await connection.runAndReadAll(sql, params);
-  return reader.getRowObjects().map(normalizeRow);
+  if (!instance) throw new Error('DB not initialized');
+  const conn = await acquire();
+  try {
+    const reader = await conn.runAndReadAll(sql, params);
+    return reader.getRowObjects().map(normalizeRow);
+  } finally {
+    release(conn); // always return it, even if the query threw
+  }
 }
 
 export async function get(sql, params = []) {
@@ -62,6 +93,7 @@ export async function get(sql, params = []) {
 }
 
 export function closeDb() {
-  try { connection?.closeSync(); } catch {}
+  for (const conn of allConnections) { try { conn.closeSync(); } catch {} }
+  allConnections = []; idle = []; waiters = [];
   try { instance?.closeSync(); } catch {}
 }
