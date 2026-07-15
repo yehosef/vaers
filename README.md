@@ -73,8 +73,26 @@ this with an **`ORDER`** column (1 = primary, >1 = follow-up).
 
 To avoid double-counting, `reports` is **one row per case** (`REPORT_ORDER = 1`), each carrying
 a `FOLLOWUP_COUNT`; every follow-up row is preserved in `vaersdata` and shown in the case modal.
-Derived fields ported from the original importer: `NUMDAYS`, `REACTIONS`, `NUM_VAX`,
-`VAX_TYPES`, `HAS_DATA`.
+
+### Data manipulations
+
+The dashboard does **not** show raw VAERS rows. The raw CSVs land untouched in `vaersdata` /
+`vaersvax` / `vaerssymptoms`; the `reports` model layered on top applies these changes (ported
+from the original 2019 PHP importer, in `pipeline/sql/build_reports.sql`):
+
+- **Encoding** — CSVs are transcoded windows-1252 → UTF-8 on import.
+- **Primary reports only** — `reports` keeps `REPORT_ORDER = 1`; follow-ups are excluded from
+  every count (kept in `vaersdata`). `NUM_VAX`/`VAX_TYPES` aggregate the primary's vaccines only.
+- **`NUMDAYS`** — uses the stored value; if absent, derives `|ONSET − VAX|`. The absolute value
+  silently "fixes" onset-before-vaccination rows rather than flagging them, and values
+  **>10000 days are dropped to NULL** as implausible.
+- **`clean_nullable`** — 24 null-like strings (`"none"`, `"n/a"`, `"unknown"`, …) in the history
+  fields (OTHER_MEDS, CUR_ILL, HISTORY, ALLERGIES, LAB_DATA) become NULL.
+- **`REACTIONS`** — a derived list from the 8 outcome booleans (DIED, HOSPITAL, L_THREAT,
+  DISABLE, ER_VISIT, ER_ED_VISIT, X_STAY, plus `!RECOVED` when `RECOVD = 'N'`).
+- **`HAS_DATA`** — which history fields survived `clean_nullable`.
+- **`rate`** — a *display-time* multiplier (`100 / rate`) you choose in the UI; it scales counts
+  to model underreporting and is **not** part of the stored data.
 
 ## Layout
 
