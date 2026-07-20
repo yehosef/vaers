@@ -57,19 +57,22 @@ async function main() {
   const conn = await instance.connect();
   await conn.run(sql);
 
-  const reports = Number(
-    (await conn.runAndReadAll('SELECT COUNT(*)::BIGINT AS c FROM reports')).getRowObjects()[0].c
+  const count = async (t) => Number(
+    (await conn.runAndReadAll(`SELECT COUNT(*)::BIGINT AS c FROM ${t}`)).getRowObjects()[0].c
   );
-  const rv = Number(
-    (await conn.runAndReadAll('SELECT COUNT(*)::BIGINT AS c FROM reports_vax')).getRowObjects()[0].c
-  );
+  const reports = await count('reports');
+  const rv = await count('reports_vax');
+  const syms = await count('symptoms');
+  const rs = await count('reports_symptoms');
   conn.closeSync();
   instance.closeSync();
 
   console.log(`\n✓ Build complete in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-  console.log(`  reports:     ${reports.toLocaleString()} rows`);
-  console.log(`  reports_vax: ${rv.toLocaleString()} rows`);
-  console.log(`  database:    ${dbPath}`);
+  console.log(`  reports:          ${reports.toLocaleString()} rows`);
+  console.log(`  reports_vax:      ${rv.toLocaleString()} rows`);
+  console.log(`  symptoms:         ${syms.toLocaleString()} rows`);
+  console.log(`  reports_symptoms: ${rs.toLocaleString()} rows`);
+  console.log(`  database:         ${dbPath}`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

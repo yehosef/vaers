@@ -16,12 +16,12 @@ export function filterPayload(f) {
 }
 
 export async function fetchDashboard(f) {
-  const { data } = await http.post('/dashboard', filterPayload(f))
+  const { data } = await http.post('/dashboard', { ...filterPayload(f), include_deaths: !!f.include_deaths })
   return data
 }
 
 export async function fetchCases(f, limit, offset) {
-  const { data } = await http.post('/cases', { ...filterPayload(f), limit, offset })
+  const { data } = await http.post('/cases', { ...filterPayload(f), limit, offset, sort: f.sort })
   return data
 }
 

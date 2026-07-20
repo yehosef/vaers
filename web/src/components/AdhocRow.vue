@@ -20,6 +20,13 @@
     </select>
     <input v-else-if="meta && meta.kind === 'numeric'" class="inp val" type="number"
            v-model="row.value" :placeholder="rangeHint" @keyup.enter="$emit('apply')" @change="$emit('apply')" />
+    <template v-else-if="meta && meta.kind === 'text' && meta.suggestions && meta.suggestions.length">
+      <input class="inp val" type="text" v-model="row.value" :list="listId" placeholder="value"
+             @keyup.enter="$emit('apply')" @change="$emit('apply')" />
+      <datalist :id="listId">
+        <option v-for="s in meta.suggestions" :key="s" :value="s"></option>
+      </datalist>
+    </template>
     <input v-else class="inp val" type="text" v-model="row.value" placeholder="value"
            @keyup.enter="$emit('apply')" />
 
@@ -39,6 +46,8 @@ const emit = defineEmits(['apply', 'remove'])
 
 const meta = ref(null)
 const loading = ref(false)
+// Unique per row instance so multiple text-with-suggestions rows don't collide on one <datalist> id.
+const listId = `adhoc-suggest-${Math.random().toString(36).slice(2)}`
 
 const NUM_OPS = ['=', '!=', '>', '<', '>=', '<=']
 const ENUM_OPS = ['=', '!=']

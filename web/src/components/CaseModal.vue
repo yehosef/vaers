@@ -31,8 +31,37 @@
             <span>sex <b>{{ r.SEX || '—' }}</b></span>
             <span>state <b>{{ r.STATE || '—' }}</b></span>
             <span v-for="o in outcomes(r)" :key="o" class="oc">{{ o }}</span>
+            <span v-if="r.DATEDIED" class="oc died">died {{ r.DATEDIED }}</span>
           </div>
+
+          <table v-if="vaccinesFor(r.REPORT_ORDER).length" class="vtbl">
+            <thead>
+              <tr><th>TYPE</th><th>NAME</th><th>MANU</th><th>LOT</th><th>DOSE</th><th>ROUTE</th><th>SITE</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(v, i) in vaccinesFor(r.REPORT_ORDER)" :key="i">
+                <td>{{ v.VAX_TYPE || '—' }}</td>
+                <td>{{ v.VAX_NAME || '—' }}</td>
+                <td>{{ v.VAX_MANU || '—' }}</td>
+                <td>{{ v.VAX_LOT || '—' }}</td>
+                <td>{{ v.VAX_DOSE_SERIES || '—' }}</td>
+                <td>{{ v.VAX_ROUTE || '—' }}</td>
+                <td>{{ v.VAX_SITE || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div v-if="symptomsFor(r.REPORT_ORDER).length" class="chips">
+            <span v-for="s in symptomsFor(r.REPORT_ORDER)" :key="s" class="chip">{{ s }}</span>
+          </div>
+
           <p class="rtext">{{ r.SYMPTOM_TEXT || '(no narrative)' }}</p>
+
+          <div v-if="historyFields(r).length" class="history">
+            <div v-for="h in historyFields(r)" :key="h.key" class="hfield">
+              <span class="hlabel">{{ h.label }}</span> {{ h.value }}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -40,15 +69,36 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { fetchCase } from '../utils/api.js'
 
 const props = defineProps({ vaersId: { type: String, required: true } })
 defineEmits(['close'])
 
-const reports = ref([])
+const caseData = ref(null)
 const loading = ref(true)
 const error = ref(null)
+
+const reports = computed(() => caseData.value?.reports || [])
+
+// vaccines/symptoms are per-report (matched by REPORT_ORDER); vaccines can be multiple rows.
+function vaccinesFor(order) {
+  return (caseData.value?.vaccines || []).filter((v) => (v.REPORT_ORDER ?? 1) === order)
+}
+function symptomsFor(order) {
+  const entry = (caseData.value?.symptoms || []).find((s) => s.REPORT_ORDER === order)
+  return entry?.symptoms || []
+}
+
+const HISTORY_FIELDS = [
+  ['OTHER_MEDS', 'meds'], ['CUR_ILL', 'current illness'], ['HISTORY', 'history'],
+  ['ALLERGIES', 'allergies'], ['LAB_DATA', 'lab data'],
+]
+function historyFields(r) {
+  return HISTORY_FIELDS
+    .filter(([key]) => r[key] != null && r[key] !== '')
+    .map(([key, label]) => ({ key, label, value: r[key] }))
+}
 
 function outcomes(r) {
   const map = { DIED: 'DIED', L_THREAT: 'LIFE-THREAT', HOSPITAL: 'HOSPITAL', DISABLE: 'DISABLED',
@@ -60,8 +110,7 @@ function outcomes(r) {
 
 onMounted(async () => {
   try {
-    const data = await fetchCase(props.vaersId)
-    reports.value = data.reports
+    caseData.value = await fetchCase(props.vaersId)
   } catch (e) {
     error.value = e.message || 'failed to load case'
   } finally {
@@ -90,5 +139,17 @@ onMounted(async () => {
 .rfields { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: #9aa0a6; margin-bottom: 6px; }
 .rfields b { color: #d8d9da; font-weight: 600; }
 .oc { background: #3b1f22; color: #e58a91; border-radius: 3px; padding: 0 6px; font-size: 11px; }
+.oc.died { background: #2c2f36; color: #d8d9da; font-weight: 600; }
 .rtext { font-size: 13px; color: #c7cbd1; line-height: 1.5; white-space: pre-wrap; }
+
+.vtbl { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+.vtbl th { text-align: left; color: #33b5e5; font-weight: 500; border-bottom: 1px solid #2c2f36; padding: 3px 6px; }
+.vtbl td { padding: 3px 6px; border-bottom: 1px solid #1e2024; color: #c7cbd1; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.chip { background: #23262b; color: #b8bcc2; border-radius: 10px; padding: 2px 9px; font-size: 11px; }
+
+.history { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.hfield { font-size: 12px; color: #c7cbd1; }
+.hlabel { color: #8e8e8e; font-weight: 600; text-transform: uppercase; font-size: 10px; margin-right: 4px; }
 </style>

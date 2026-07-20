@@ -69,21 +69,100 @@
           <div class="pie-wrap">
             <div ref="pieEl"></div>
             <ul class="legend">
-              <li v-for="(r, i) in store.dashboard.reactions" :key="r.reaction">
+              <li v-for="(r, i) in store.dashboard.reactions" :key="r.reaction" class="clickable" @click="onReactionClick(r)">
                 <span class="dot" :style="{ background: palette[i % palette.length] }"></span>{{ r.reaction }}
               </li>
             </ul>
           </div>
         </div>
-        <div class="panel c4"><div class="ptitle">Age (&lt;20)</div><div ref="ageEl" class="pbody"></div></div>
+        <div class="panel c4">
+          <div class="ptitle phead">
+            <span>{{ store.ageDetail ? 'Age (<20)' : 'Age' }}</span>
+            <button class="pill" :class="{ on: store.ageDetail }"
+                    @click="store.setAgeDetail(!store.ageDetail)" title="toggle single-year &lt;20 detail">&lt;20</button>
+          </div>
+          <div ref="ageEl" class="pbody"></div>
+        </div>
       </div>
 
-      <!-- ===== Row 4: Case details ===== -->
+      <!-- ===== Row 4: Symptoms | Manufacturers | Sex | State ===== -->
+      <div class="grid">
+        <div class="panel c4">
+          <div class="ptitle">Symptoms <span class="muted small">· {{ symptomsCaption }}</span></div>
+          <div ref="symptomsEl" class="pbody"></div>
+        </div>
+        <div class="panel c3">
+          <div class="ptitle">Manufacturers</div>
+          <table class="tbl">
+            <thead><tr><th>MANUFACTURER</th><th class="num">Total</th></tr></thead>
+            <tbody>
+              <tr v-for="m in store.dashboard.manufacturers" :key="m.manu" class="crow" @click="onManuClick(m.manu)">
+                <td>{{ m.manu }}</td><td class="num">{{ fmt(m.count) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel c2">
+          <div class="ptitle">Sex</div>
+          <div class="pie-wrap">
+            <div ref="sexEl"></div>
+            <ul class="legend">
+              <li v-for="(s, i) in store.dashboard.sex" :key="s.sex" class="clickable" @click="onSexClick(s)">
+                <span class="dot" :style="{ background: palette[i % palette.length] }"></span>{{ s.sex }}
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="panel c3">
+          <div class="ptitle">State</div>
+          <table class="tbl">
+            <thead><tr><th>STATE</th><th class="num">Total</th></tr></thead>
+            <tbody>
+              <tr v-for="st in store.dashboard.states" :key="st.state" class="crow" @click="onStateClick(st.state)">
+                <td>{{ st.state }}</td><td class="num">{{ fmt(st.count) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="row-toggle">
+        <button class="btn xs" @click="store.toggleExtra()">{{ store.showExtra ? 'less ▾' : 'more ▸' }}</button>
+      </div>
+
+      <!-- ===== Row 5 (toggleable): Deaths | Lag ===== -->
+      <div class="grid" v-if="store.showExtra">
+        <div class="panel c6">
+          <div class="ptitle"
+               title="Deaths by DATEDIED year; deaths lacking a death date are excluded; the VAX_DATE range filter still selects which cases appear.">
+            Deaths
+          </div>
+          <div ref="deathsEl" class="pbody"></div>
+          <div v-if="store.dashboard.deaths_missing_date" class="muted small ctr">
+            {{ store.dashboard.deaths_missing_date }} deaths lack a death date (excluded)
+          </div>
+        </div>
+        <div class="panel c6">
+          <div class="ptitle">Report lag</div>
+          <div ref="lagEl" class="pbody"></div>
+        </div>
+      </div>
+
+      <!-- ===== Row 6: Case details ===== -->
       <div class="grid">
         <div class="panel c12">
           <div class="ptitle">Case details <span class="muted">· {{ store.cases.total.toLocaleString() }} reports</span></div>
           <table class="tbl cases">
-            <thead><tr><th>DATE</th><th class="num">AGE</th><th class="num">#DAYS</th><th>DESC</th><th class="num">#VAX</th><th class="ctr">REPORTS</th></tr></thead>
+            <thead>
+              <tr>
+                <th class="sortable" @click="store.setSort('VAX_DATE')">DATE <span class="arrow">{{ sortArrow('VAX_DATE') }}</span></th>
+                <th class="num sortable" @click="store.setSort('AGE_YRS')">AGE <span class="arrow">{{ sortArrow('AGE_YRS') }}</span></th>
+                <th class="num sortable" @click="store.setSort('NUMDAYS')">#DAYS <span class="arrow">{{ sortArrow('NUMDAYS') }}</span></th>
+                <th>DESC</th>
+                <th class="num sortable" @click="store.setSort('NUM_VAX')">#VAX <span class="arrow">{{ sortArrow('NUM_VAX') }}</span></th>
+                <th class="ctr sortable" @click="store.setSort('FOLLOWUP_COUNT')">REPORTS <span class="arrow">{{ sortArrow('FOLLOWUP_COUNT') }}</span></th>
+              </tr>
+            </thead>
             <tbody>
               <tr v-for="row in store.cases.rows" :key="row.VAERS_ID" class="crow" @click="openCase(row.VAERS_ID)">
                 <td class="date">{{ row.VAX_DATE || '—' }}</td>
@@ -120,7 +199,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useFilterStore } from '../stores/filterStore.js'
 import VaxTypeSelect from '../components/VaxTypeSelect.vue'
 import DateRange from '../components/DateRange.vue'
@@ -134,8 +213,8 @@ const palette = plots.PALETTE
 
 const rateOptions = [100, 50, 10, 5, 2, 1]
 const adhocFields = ['FOLLOWUP_COUNT', 'STATE', 'SEX', 'DIED', 'HOSPITAL', 'L_THREAT', 'DISABLE', 'RECOVD',
-  'ER_VISIT', 'ER_ED_VISIT', 'X_STAY', 'BIRTH_DEFECT', 'OFC_VISIT', 'V_ADMINBY', 'AGE_YRS', 'NUMDAYS',
-  'NUM_VAX', 'IS_DOMESTIC', 'REACTIONS', 'VAX_TYPES', 'HAS_DATA']
+  'ER_VISIT', 'ER_ED_VISIT', 'X_STAY', 'BIRTH_DEFECT', 'OFC_VISIT', 'V_ADMINBY', 'V_FUNDBY', 'AGE_YRS',
+  'NUMDAYS', 'NUM_VAX', 'IS_DOMESTIC', 'REACTIONS', 'VAX_TYPES', 'HAS_DATA', 'SYMPTOMS', 'VAX_MANU']
 const adhocOps = ['=', '!=', '>', '<', '>=', '<=']
 
 const queryDraft = ref('')
@@ -143,9 +222,46 @@ const openId = ref(null)
 const openCase = (id) => { openId.value = id }
 const yearEl = ref(null), numVaxEl = ref(null), onsetEl = ref(null), ageEl = ref(null)
 const pieEl = ref(null), sparkEl = ref(null)
+const symptomsEl = ref(null), sexEl = ref(null), deathsEl = ref(null), lagEl = ref(null)
 
 const statVal = (n) => (n >= 1e5 ? fmt(n) : n.toLocaleString())
 function put(el, node) { if (el) el.replaceChildren(node) }
+
+const symptomsCaption = computed(() => {
+  const mode = store.dashboard?.symptoms?.mode
+  return mode === 'significant' ? 'significant vs background' : 'top symptoms'
+})
+
+// Fixed 8 age buckets from the API → half-open [lo, hi) ranges; '60+' is a single-sided filter.
+const AGE_BUCKET_RANGES = {
+  '0-1': [0, 1], '1-2': [1, 2], '2-4': [2, 4], '4-10': [4, 10],
+  '10-20': [10, 20], '20-40': [20, 40], '40-60': [40, 60],
+}
+function onAgeClick(d) {
+  if (d.label === '60+') { store.addFilters([{ field: 'AGE_YRS', op: '>=', value: 60 }]); return }
+  const range = AGE_BUCKET_RANGES[d.label]
+  if (!range) return
+  store.addFilters([
+    { field: 'AGE_YRS', op: '>=', value: range[0] },
+    { field: 'AGE_YRS', op: '<', value: range[1] },
+  ])
+}
+function onAgeU20Click(d) {
+  store.addFilters([
+    { field: 'AGE_YRS', op: '>=', value: d.age },
+    { field: 'AGE_YRS', op: '<', value: d.age + 1 },
+  ])
+}
+function onReactionClick(d) { store.addFilters([{ field: 'REACTIONS', op: '=', value: d.reaction }]) }
+function onSexClick(d) { store.addFilters([{ field: 'SEX', op: '=', value: d.sex }]) }
+function onSymptomClick(d) { store.addFilters([{ field: 'SYMPTOMS', op: '=', value: d.symptom }]) }
+function onManuClick(manu) { store.addFilters([{ field: 'VAX_MANU', op: '=', value: manu }]) }
+function onStateClick(state) { store.addFilters([{ field: 'STATE', op: '=', value: state }]) }
+
+function sortArrow(field) {
+  if (store.sort.field !== field) return ''
+  return store.sort.dir === 'asc' ? '▲' : '▼'
+}
 
 function render() {
   const d = store.dashboard
@@ -154,9 +270,18 @@ function render() {
   put(yearEl.value, plots.eventsByYear(d.events_by_year, w(yearEl.value)))
   put(numVaxEl.value, plots.numVax(d.num_vax, w(numVaxEl.value)))
   put(onsetEl.value, plots.onsetDays(d.onset_days, w(onsetEl.value)))
-  put(ageEl.value, plots.ageBuckets(d.age, w(ageEl.value)))
-  put(pieEl.value, plots.reactionsPie(d.reactions))
+  put(ageEl.value, store.ageDetail
+    ? plots.ageU20(d.age_u20, w(ageEl.value), 210, onAgeU20Click)
+    : plots.ageBuckets(d.age, w(ageEl.value), 210, onAgeClick))
+  put(pieEl.value, plots.reactionsPie(d.reactions, onReactionClick))
   put(sparkEl.value, plots.sparkline(d.sparkline))
+  put(symptomsEl.value, plots.symptomsBar(
+    d.symptoms?.rows || [], d.symptoms?.mode || 'top', w(symptomsEl.value), 300, onSymptomClick))
+  put(sexEl.value, plots.sexPie(d.sex, onSexClick))
+  if (store.showExtra) {
+    if (d.deaths) put(deathsEl.value, plots.deathsByYear(d.deaths, w(deathsEl.value)))
+    put(lagEl.value, plots.lagBins(d.lag, w(lagEl.value)))
+  }
 }
 
 // #VAX cell: green(1-2) → amber → orange → red, matching Grafana thresholds.
@@ -169,6 +294,8 @@ function vaxCellStyle(n) {
 function onReset() { queryDraft.value = ''; store.reset() }
 
 watch(() => store.dashboard, () => nextTick(render))
+watch(() => store.showExtra, () => nextTick(render))
+watch(() => store.ageDetail, () => nextTick(render))
 let raf = null
 onMounted(async () => {
   await store.init()
@@ -206,26 +333,41 @@ onMounted(async () => {
 .c6 { grid-column: span 6; } .c12 { grid-column: span 12; }
 .panel { background: #141619; border: 1px solid #23262b; border-radius: 3px; padding: 8px 10px; min-width: 0; }
 .ptitle { text-align: center; font-size: 13px; color: #d8d9da; font-weight: 500; margin-bottom: 6px; }
+.ptitle.phead { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .pbody { overflow: hidden; }
 .stat { display: flex; flex-direction: column; }
 .stat-value { text-align: center; font-size: 30px; font-weight: 700; color: #fff; margin: 12px 0 4px; }
 .spark { margin-top: auto; }
+.small { font-size: 11px; }
+.ctr { text-align: center; }
+
+/* small toggle pill (Age <20) */
+.pill { font-size: 10px; padding: 1px 7px; border-radius: 9px; border: 1px solid #3a4147; background: #2c3235; color: #8e8e8e; cursor: pointer; line-height: 1.5; }
+.pill:hover { color: #d8d9da; } .pill.on { background: #33b5e5; border-color: #33b5e5; color: #06131a; }
+
+/* more/less row toggle */
+.row-toggle { display: flex; justify-content: center; margin: -2px 0 8px; }
 
 /* pie */
 .pie-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; width: 100%; font-size: 10px; }
 .legend li { display: flex; align-items: center; gap: 4px; color: #b8bcc2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend li.clickable { cursor: pointer; }
+.legend li.clickable:hover { color: #fff; }
 .dot { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
 
 /* tables */
 .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .tbl th { text-align: left; color: #33b5e5; font-weight: 500; border-bottom: 1px solid #2c2f36; padding: 5px 6px; }
+.tbl th.sortable { cursor: pointer; user-select: none; }
+.tbl th.sortable:hover { color: #6ed0e0; }
+.tbl th .arrow { font-size: 9px; }
 .tbl td { padding: 4px 6px; border-bottom: 1px solid #1e2024; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
 .tbl.cases .date { color: #33b5e5; white-space: nowrap; }
 .tbl.cases .desc { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c7cbd1; }
-.tbl.cases .crow { cursor: pointer; }
-.tbl.cases .crow:hover { background: #1c1f24; }
+.tbl .crow { cursor: pointer; }
+.tbl .crow:hover { background: #1c1f24; }
 .tbl .ctr { text-align: center; white-space: nowrap; }
 .fu { color: #e0b400; font-size: 11px; font-weight: 600; }
 .vaxcell { display: inline-block; min-width: 20px; padding: 1px 6px; border-radius: 2px; font-weight: 700; }

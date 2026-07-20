@@ -1,6 +1,7 @@
 // DuckDB access layer — READ_ONLY connection pool, bound params, JS-normalized rows.
 import { DuckDBInstance } from '@duckdb/node-api';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,9 +32,49 @@ let allConnections = [];   // every connection, for shutdown
 let idle = [];             // connections free right now
 let waiters = [];          // resolvers waiting for a connection
 
+// Validate a directory is writable by writing (then deleting) a throwaway probe file.
+function assertWritable(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const probe = path.join(dir, `.probe-${process.pid}-${Date.now()}`);
+  fs.writeFileSync(probe, '');
+  fs.unlinkSync(probe);
+}
+
+// DuckDB spills large sorts/aggregates to disk under memory_limit pressure — pick a
+// writable temp dir before opening the instance: env override, else next to the DB
+// file, else the OS temp dir.
+function resolveTempDir() {
+  const primary = process.env.VAERS_DB_TMP || path.join(path.dirname(dbPath), '.duckdb_tmp');
+  try {
+    assertWritable(primary);
+    return primary;
+  } catch {
+    const fallback = path.join(os.tmpdir(), 'vaers-duckdb-tmp');
+    assertWritable(fallback); // let this throw if even the OS temp dir isn't writable
+    return fallback;
+  }
+}
+
 export async function initDb() {
   dbPath = resolveDbPath();
-  instance = await DuckDBInstance.create(dbPath, { access_mode: 'READ_ONLY' });
+  const tempDir = resolveTempDir();
+  console.log(`🗃️  DuckDB temp directory: ${tempDir}`);
+  // memory_limit is instance-global (shared by every pooled connection). Default 550MB
+  // targets a ~1GB VPS; override with VAERS_DB_MEMORY (e.g. '900MB') on a bigger box.
+  const memoryLimit = process.env.VAERS_DB_MEMORY || '550MB';
+  instance = await DuckDBInstance.create(dbPath, {
+    access_mode: 'READ_ONLY',
+    memory_limit: memoryLimit,
+    temp_directory: tempDir,
+    max_temp_directory_size: '5GB',
+    // The dashboard fires ~14 aggregate queries concurrently over a shared, capped
+    // memory budget; a broad filter makes several of them build large hash tables at
+    // once and blow the limit (hard OOM -> 500). Every panel query is an explicitly
+    // ORDER BY'd aggregate, so insertion order is never relied upon — dropping it lets
+    // DuckDB stream aggregates with far less resident memory (its own OOM hint).
+    preserve_insertion_order: false,
+  });
+  console.log(`   memory_limit=${memoryLimit}, panel_concurrency via VAERS_PANEL_CONCURRENCY`);
   allConnections = await Promise.all(
     Array.from({ length: POOL_SIZE }, () => instance.connect())
   );
