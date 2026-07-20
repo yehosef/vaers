@@ -1,12 +1,15 @@
 // Global filter state -> { where, params } against the `reports` table (alias r).
 //
 // Filter context (shared by /api/dashboard and /api/cases):
-//   query      free-text -> SYMPTOM_TEXT ILIKE %query%
-//   vax_type   single VAX_TYPE  -> list_contains(VAX_TYPES, ?)
-//   date_from  VAX_DATE >= ?    (the dashboard time dimension is VAX_DATE)
-//   date_to    VAX_DATE <= ?
-//   adhoc[]    whitelisted {field, op, value} only — everything else rejected
-//   rate       NOT a filter; a count multiplier handled in the routes (×100/rate)
+//   query           free-text -> SYMPTOM_TEXT ILIKE %query%
+//   vax_type        single VAX_TYPE  -> list_contains(VAX_TYPES, ?)
+//   date_field      which axis date_from/date_to bind to — 'VAX_DATE' (default) or
+//                   'RECVDATE' (the All Reports view); strict whitelist, never interpolated raw
+//   date_from       <date_field> >= ?
+//   date_to         <date_field> <= ?
+//   no_vaxdate_only true -> VAX_DATE IS NULL appended (All Reports view toggle)
+//   adhoc[]         whitelisted {field, op, value} only — everything else rejected
+//   rate            NOT a filter; a count multiplier handled in the routes (×100/rate)
 import { all } from './db.js';
 
 // Scalar columns that may be filtered ad hoc, with the operators each allows.
@@ -67,8 +70,16 @@ export async function buildFilters(body = {}) {
     conds.push(`list_has_any(r.VAX_TYPES, [${list}])`);
   }
 
-  if (body.date_from) conds.push(`r.VAX_DATE >= ${p(String(body.date_from))}`);
-  if (body.date_to)   conds.push(`r.VAX_DATE <= ${p(String(body.date_to))}`);
+  // date_field is an enum switch, not an interpolated value: anything but the exact
+  // string 'RECVDATE' falls back to VAX_DATE.
+  const dateField = String(body.date_field || '').toUpperCase() === 'RECVDATE' ? 'RECVDATE' : 'VAX_DATE';
+  if (body.date_from) conds.push(`r.${dateField} >= ${p(String(body.date_from))}`);
+  if (body.date_to)   conds.push(`r.${dateField} <= ${p(String(body.date_to))}`);
+
+  // All Reports "No VAX_DATE only" toggle — restricts every panel + the cases table.
+  if (body.no_vaxdate_only === true || body.no_vaxdate_only === 'true') {
+    conds.push('r.VAX_DATE IS NULL');
+  }
 
   for (const f of Array.isArray(body.adhoc) ? body.adhoc : []) {
     if (!f || typeof f.field !== 'string') continue;

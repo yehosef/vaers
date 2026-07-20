@@ -11,12 +11,15 @@ export function filterPayload(f) {
     adhoc: (f.adhoc || []).filter((a) => a.field && a.value !== '' && a.value != null),
     date_from: f.dateFrom || null,
     date_to: f.dateTo || null,
+    date_field: f.dateField || 'VAX_DATE',   // which axis the range binds to (All Reports: RECVDATE)
+    no_vaxdate_only: !!f.noVaxDateOnly,      // All Reports toggle: VAX_DATE IS NULL
     rate: f.rate || 100,
   }
 }
 
-export async function fetchDashboard(f) {
-  const { data } = await http.post('/dashboard', { ...filterPayload(f), include_deaths: !!f.include_deaths })
+// panels[] selects which aggregates the server computes — each view asks only for its own.
+export async function fetchDashboard(f, panels) {
+  const { data } = await http.post('/dashboard', { ...filterPayload(f), panels })
   return data
 }
 

@@ -1,6 +1,7 @@
 node_modules/
 /vendor/
 /data/
+web/dist/
 
 # local working notes (session state, code-review transcripts)
 .claude/

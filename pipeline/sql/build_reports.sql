@@ -66,7 +66,11 @@ WITH vax_agg AS (
     VAERS_ID,
     COUNT(*)                                            AS NUM_VAX,
     array_sort(list(DISTINCT VAX_TYPE)
-      FILTER (WHERE VAX_TYPE IS NOT NULL AND VAX_TYPE <> '')) AS VAX_TYPES
+      FILTER (WHERE VAX_TYPE IS NOT NULL AND VAX_TYPE <> '')) AS VAX_TYPES,
+    -- VAX_COMBO: the sorted type set as one string ('DTAPIPV::FLU4') — the
+    -- Vaccine view's combinations panel GROUP BYs this directly.
+    array_to_string(array_sort(list(DISTINCT VAX_TYPE)
+      FILTER (WHERE VAX_TYPE IS NOT NULL AND VAX_TYPE <> '')), '::') AS VAX_COMBO
   FROM vaersvax
   WHERE COALESCE(REPORT_ORDER, 1) = 1                   -- primary submission's vaccines
   GROUP BY VAERS_ID
@@ -108,6 +112,7 @@ SELECT
   coalesce(fu.FOLLOWUP_COUNT, 0)           AS FOLLOWUP_COUNT,
   coalesce(va.NUM_VAX, 0)                  AS NUM_VAX,
   coalesce(va.VAX_TYPES, []::VARCHAR[])    AS VAX_TYPES,
+  NULLIF(va.VAX_COMBO, '')                 AS VAX_COMBO,  -- NULL when no typed vaccine rows
 
   -- HAS_DATA: which history fields survive clean_nullable (import-data.php
   -- has_fields). The cleaned text itself is NOT stored — the case modal reads

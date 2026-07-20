@@ -1,0 +1,105 @@
+/* Shared dashboard chrome — filter bar, nav tabs, panel grid, tables, pies.
+   Global (imported in main.js) so every view/component draws from one set of
+   classes instead of re-scoping the Grafana-dark styles per file. */
+
+.dash { color: #d8d9da; }
+
+/* nav tabs (replaces Grafana's dashlist) */
+.dnav { display: flex; align-items: center; gap: 2px; margin-bottom: 12px; border-bottom: 1px solid #2c2f36; }
+.dnav a { color: #8e8e8e; text-decoration: none; font-size: 13px; padding: 7px 14px; border: 1px solid transparent; border-bottom: none; border-radius: 3px 3px 0 0; }
+.dnav a:hover { color: #d8d9da; }
+.dnav a.on { color: #33b5e5; background: #141619; border-color: #2c2f36; }
+.dnav .about { margin-left: auto; color: #6b7078; font-size: 12px; cursor: help; padding: 0 6px; }
+.dnav .about:hover { color: #d8d9da; }
+
+/* filter bar */
+.filterbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.fb-left, .fb-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.grp { display: flex; align-items: center; gap: 8px; }
+.lbl { color: #33b5e5; font-size: 12px; font-weight: 600; }
+.inp { background: #0b0c0e; color: #d8d9da; border: 1px solid #2c2f36; border-radius: 3px; padding: 6px 8px; font-size: 13px; color-scheme: dark; }
+.inp.query { width: 200px; } .inp.sm { width: 150px; } .inp.xs { width: 64px; }
+.inp:focus { outline: none; border-color: #33b5e5; box-shadow: 0 0 0 1px #33b5e5; }
+.plus { width: 30px; height: 30px; background: #2c3235; border: 1px solid #3a4147; color: #d8d9da; border-radius: 3px; cursor: pointer; font-size: 15px; }
+.plus:hover { background: #3a4147; }
+.btn { background: #2c3235; color: #d8d9da; border: 1px solid #3a4147; border-radius: 3px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.btn:hover { background: #3a4147; } .btn.xs { padding: 4px 8px; font-size: 12px; } .btn.sm { padding: 5px 10px; }
+.btn.apply { background: #33b5e5; border-color: #33b5e5; color: #06131a; font-weight: 600; }
+.btn:disabled { opacity: .4; cursor: default; }
+.loading { color: #e0b400; font-size: 12px; } .err { color: #e02f44; font-size: 12px; }
+/* which date column the range filter binds to (VAX_DATE vs RECVDATE) */
+.axis-tag { color: #6b7078; font-size: 11px; white-space: nowrap; cursor: help; }
+.axis-tag b { color: #8e8e8e; font-weight: 600; }
+
+/* adhoc rows */
+.adhoc { display: flex; gap: 8px; align-items: center; padding: 8px 10px; margin-bottom: 12px; flex-wrap: wrap; background: #1f2126; border: 1px solid #2c2f36; border-radius: 3px; }
+
+/* grid */
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 8px; margin-bottom: 8px; }
+.c2 { grid-column: span 2; } .c3 { grid-column: span 3; } .c4 { grid-column: span 4; }
+.c5 { grid-column: span 5; } .c6 { grid-column: span 6; } .c12 { grid-column: span 12; }
+.panel { background: #141619; border: 1px solid #23262b; border-radius: 3px; padding: 8px 10px; min-width: 0; }
+.ptitle { text-align: center; font-size: 13px; color: #d8d9da; font-weight: 500; margin-bottom: 6px; }
+.ptitle.phead { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pbody { overflow: hidden; }
+.stat { display: flex; flex-direction: column; }
+.stat-value { text-align: center; font-size: 30px; font-weight: 700; color: #fff; margin: 12px 0 4px; }
+.stat-sub { text-align: center; font-size: 12px; color: #8e8e8e; }
+.spark { margin-top: auto; }
+.small { font-size: 11px; }
+.ctr { text-align: center; }
+.pload { padding: 24px 0; }
+
+/* small toggle pill (Age <20, No VAX_DATE only) */
+.pill { font-size: 10px; padding: 1px 7px; border-radius: 9px; border: 1px solid #3a4147; background: #2c3235; color: #8e8e8e; cursor: pointer; line-height: 1.5; }
+.pill:hover { color: #d8d9da; } .pill.on { background: #33b5e5; border-color: #33b5e5; color: #06131a; }
+
+/* view-local header row (e.g. All Reports' No-VAX_DATE toggle) */
+.view-note { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 12px; color: #8e8e8e; }
+
+/* pie */
+.pie-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; width: 100%; font-size: 10px; }
+.legend li { display: flex; align-items: center; gap: 4px; color: #b8bcc2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend li.clickable { cursor: pointer; }
+.legend li.clickable:hover { color: #fff; }
+.dot { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+
+/* tables */
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { text-align: left; color: #33b5e5; font-weight: 500; border-bottom: 1px solid #2c2f36; padding: 5px 6px; }
+.tbl th.sortable { cursor: pointer; user-select: none; }
+.tbl th.sortable:hover { color: #6ed0e0; }
+.tbl th .arrow { font-size: 9px; }
+.tbl td { padding: 4px 6px; border-bottom: 1px solid #1e2024; }
+.tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl.cases .date { color: #33b5e5; white-space: nowrap; }
+.tbl.cases .desc { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c7cbd1; }
+.tbl .crow { cursor: pointer; }
+.tbl .crow:hover { background: #1c1f24; }
+.tbl .ctr { text-align: center; white-space: nowrap; }
+.fu { color: #e0b400; font-size: 11px; font-weight: 600; }
+.vaxcell { display: inline-block; min-width: 20px; padding: 1px 6px; border-radius: 2px; font-weight: 700; }
+.muted { color: #6b7078; font-weight: 400; } .center { text-align: center; }
+.pager { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 12px; }
+.booting { padding: 40px; text-align: center; color: #8e8e8e; }
+
+/* loading overlay over the panels while a filter reload is in flight */
+.content { position: relative; }
+.load-overlay {
+  position: absolute; inset: 0; z-index: 20; display: flex; align-items: flex-start;
+  justify-content: center; gap: 10px; padding-top: 120px;
+  background: rgba(11, 12, 14, 0.55); backdrop-filter: blur(1px);
+  color: #d8d9da; font-size: 13px;
+}
+.load-overlay span { align-self: center; }
+.spinner {
+  width: 22px; height: 22px; border: 3px solid #2c3235; border-top-color: #33b5e5;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1200px) {
+  .grid { grid-template-columns: repeat(6, 1fr); }
+  .c5, .c6, .c12 { grid-column: span 6; } .c4 { grid-column: span 6; } .c3 { grid-column: span 3; } .c2 { grid-column: span 2; }
+}

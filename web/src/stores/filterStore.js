@@ -1,4 +1,8 @@
-// Global filter state — any mutation reloads all panels + the cases table.
+// Global filter state — one filter context shared by every view; any mutation
+// reloads the ACTIVE view's panels + the cases table. Which panels those are
+// (and which date axis the range binds to) is declared by the view via
+// setActiveView; per-view display state (age detail, symptoms mode) stays in
+// the view components themselves.
 import { defineStore } from 'pinia'
 import { fetchDashboard, fetchCases, fetchVaxTypes } from '../utils/api.js'
 
@@ -6,7 +10,7 @@ const PAGE_SIZE = 25
 
 export const useFilterStore = defineStore('filters', {
   state: () => ({
-    // filter context
+    // filter context (persists across view switches, like Grafana variables)
     query: '',
     vaxTypes: [],         // multi-select; [] === All
     adhoc: [],            // [{ field, op, value }]
@@ -14,10 +18,18 @@ export const useFilterStore = defineStore('filters', {
     dateTo: '',
     rate: 100,            // Grafana default (100 -> ×1, i.e. real counts)
     sort: { field: 'VAX_DATE', dir: 'desc' },
-    showExtra: false,     // row-5 display toggle (deaths + lag panels)
-    ageDetail: false,     // Age panel display toggle (all-ages buckets vs. age_u20)
 
-    // data
+    // the active view's panel contract — set on route enter, reset on switch
+    activeView: {
+      name: '',
+      panels: [],         // first-fetch panel keys
+      lazyPanels: [],     // second-fetch keys (Vaccine's raw-join panels), after first paint
+      dateField: 'VAX_DATE',   // 'VAX_DATE' | 'RECVDATE' — what dateFrom/dateTo bind to
+      noVaxDateOnly: false,    // All Reports toggle (view-owned; reset on view enter)
+    },
+
+    // data — dashboard holds the union of panel keys fetched for the current
+    // filter context; views read only their own keys.
     dashboard: null,
     cases: { rows: [], total: 0 },
     vaxTypeOptions: [],
@@ -28,32 +40,51 @@ export const useFilterStore = defineStore('filters', {
     loading: false,
     error: null,
     reqSeq: 0,
+    booted: false,
   }),
 
   getters: {
     totalPages: (s) => Math.max(1, Math.ceil(s.cases.total / s.pageSize)),
     filterCtx: (s) => ({
       query: s.query, vaxTypes: s.vaxTypes, adhoc: s.adhoc,
-      dateFrom: s.dateFrom, dateTo: s.dateTo, rate: s.rate,
-      include_deaths: s.showExtra, sort: s.sort,
+      dateFrom: s.dateFrom, dateTo: s.dateTo, rate: s.rate, sort: s.sort,
+      dateField: s.activeView.dateField, noVaxDateOnly: s.activeView.noVaxDateOnly,
     }),
   },
 
   actions: {
+    // One-time boot (vax-type dropdown options). Reloads are driven by setActiveView.
     async init() {
+      if (this.booted) return
+      this.booted = true
       try { this.vaxTypeOptions = await fetchVaxTypes() } catch (e) { console.warn('vax-types load failed', e) }
-      await this.reload()
     },
 
-    // Reload every panel + cases for the current filter context.
+    // Called by each view on mount. The filter context carries over in full;
+    // only the panel list / date axis / toggle change.
+    setActiveView({ name, panels, lazyPanels = [], dateField = 'VAX_DATE' }) {
+      this.activeView = { name, panels, lazyPanels, dateField, noVaxDateOnly: false }
+      return this.reload()
+    },
+
+    // All Reports' "No VAX_DATE only" — a query flag, so it lives on activeView
+    // (the view owns the checkbox; a view switch resets it).
+    setNoVaxDateOnly(v) {
+      this.activeView.noVaxDateOnly = !!v
+      return this.reload()
+    },
+
+    // Reload the active view's panels + cases for the current filter context.
     async reload({ resetPage = true } = {}) {
+      const view = this.activeView
+      if (!view.panels.length) return
       if (resetPage) this.page = 0
       const seq = ++this.reqSeq
       this.loading = true
       this.error = null
       try {
         const [dash, cases] = await Promise.all([
-          fetchDashboard(this.filterCtx),
+          fetchDashboard(this.filterCtx, view.panels),
           fetchCases(this.filterCtx, this.pageSize, this.page * this.pageSize),
         ])
         if (seq !== this.reqSeq) return // a newer request superseded this one
@@ -61,8 +92,19 @@ export const useFilterStore = defineStore('filters', {
         this.cases = cases
       } catch (e) {
         if (seq === this.reqSeq) this.error = e.message || 'Request failed'
+        return
       } finally {
         if (seq === this.reqSeq) this.loading = false
+      }
+      // Second-phase fetch (Vaccine's vaersvax-join panels): after first paint, no
+      // overlay — the missing keys render as per-panel "loading…" placeholders.
+      if (view.lazyPanels.length) {
+        try {
+          const extra = await fetchDashboard(this.filterCtx, view.lazyPanels)
+          if (seq === this.reqSeq) this.dashboard = { ...this.dashboard, ...extra }
+        } catch (e) {
+          if (seq === this.reqSeq) this.error = e.message || 'Request failed'
+        }
       }
     },
 
@@ -122,29 +164,11 @@ export const useFilterStore = defineStore('filters', {
       }
     },
 
-    // Dashboard-only refetch, only when turning ON; turning OFF just hides row 5.
-    async toggleExtra() {
-      this.showExtra = !this.showExtra
-      if (!this.showExtra) return
-      const seq = ++this.reqSeq
-      this.loading = true
-      this.error = null
-      try {
-        const dash = await fetchDashboard(this.filterCtx)
-        if (seq === this.reqSeq) this.dashboard = dash
-      } catch (e) {
-        if (seq === this.reqSeq) this.error = e.message || 'Request failed'
-      } finally {
-        if (seq === this.reqSeq) this.loading = false
-      }
-    },
-
-    setAgeDetail(v) { this.ageDetail = v }, // display-only; age_u20 always present
-
     reset() {
       this.query = ''; this.vaxTypes = []; this.adhoc = []
       this.dateFrom = ''; this.dateTo = ''; this.rate = 100
       this.sort = { field: 'VAX_DATE', dir: 'desc' }
+      this.activeView.noVaxDateOnly = false
       return this.reload()
     },
   },

@@ -104,14 +104,34 @@ bun run web       # http://localhost:3000   (dashboard; proxies /api → 3001)
 
 ## The dashboard
 
-One filter context — free-text/VAERS-ID query, multi-select VAX TYPE, ad-hoc `field op value`
-filters, a VAX_DATE range, and an underreporting `rate` — drives the linked panels: cases per
-year, total, onset day, vax types, dose count, reactions, age (buckets or single-year <20),
-symptoms, manufacturers, sex, states, plus toggleable deaths-by-year and report-lag panels, and
-a sortable, paginated case table. **Click any row** for a modal with the primary report plus
-every follow-up, its vaccines, symptom codes, and history fields. Most panels are also
-**click-to-filter**: clicking a pie slice, age bar, symptom bar, or a manufacturer/state row
-adds the matching ad-hoc filter.
+Like the 2019 original's six Grafana dashboards, the reboot is a set of **focused views** under
+one persistent shell. One filter context — free-text/VAERS-ID query, multi-select VAX TYPE,
+ad-hoc `field op value` filters, a date range, and an underreporting `rate` — carries over in
+full when you switch views; only the panel grid changes. Every view ends in the same sortable,
+paginated case table: **click any row** for a modal with the primary report plus every
+follow-up, its vaccines, symptom codes, and history fields. Most panels are also
+**click-to-filter**: clicking a pie slice, age bar, symptom bar, or a manufacturer/state/
+admin-by row adds the matching ad-hoc filter.
+
+### Views
+
+- **Overview** (`/`) — the general dashboard: events per year, total, onset day, vax types,
+  dose count, reactions, age (buckets or single-year <20), symptoms.
+- **People** (`/people`) — who is in the reports: age, sex, state, reactions, the coded-symptom
+  panel, and which history fields each case carries.
+- **Vaccine** (`/vaccine`) — the products: vax types, manufacturers, who administered and who
+  funded, route/site/dose-series, and the **vaccine combinations** given together.
+- **All Reports** (`/all`) — every report, plotted by **RECVDATE** (see below), with a
+  **"No VAX_DATE only"** toggle isolating the ~11.5% of reports that have no vaccination date.
+- **Data Quality** (`/data-quality`) — the reporting artifacts: report lag, deaths by DATEDIED
+  vs by VAX_DATE year, VAX_DATE missingness, follow-up counts, and raw (uncleaned) lot numbers.
+
+**Two date axes.** Most views plot events by **VAX_DATE** — when the vaccine was given. But
+314k reports (~11.5%) have no VAX_DATE at all and can never appear on those charts. All Reports
+therefore plots by **RECVDATE** — when VAERS received the report — where every report is
+visible; the filter bar always shows which field the date range is bound to. (The 2019 original
+solved this with two parallel dashboard sets on different datasources; the toggle is the honest
+one-page version.)
 
 The **Symptoms** panel is dual-mode: with no filters it shows the most-reported coded MedDRA
 terms overall; once any filter is active it switches to *significant* terms — symptoms
@@ -153,7 +173,11 @@ from the original 2019 PHP importer, in `pipeline/sql/build_reports.sql`):
 
 - **Encoding** — CSVs are transcoded windows-1252 → UTF-8 on import.
 - **Primary reports only** — `reports` keeps `REPORT_ORDER = 1`; follow-ups are excluded from
-  every count (kept in `vaersdata`). `NUM_VAX`/`VAX_TYPES` aggregate the primary's vaccines only.
+  every count (kept in `vaersdata`). `NUM_VAX`/`VAX_TYPES`/`VAX_COMBO` aggregate the primary's
+  vaccines only.
+- **`VAX_COMBO`** — the report's distinct vaccine types, sorted and joined with `::`
+  (`DTAP::IPV::MMR`); single-vaccine reports carry the bare type. Backs the Vaccine view's
+  combinations panel with a plain GROUP BY.
 - **`NUMDAYS`** — uses the stored value; if absent, derives `|ONSET − VAX|`. The absolute value
   silently "fixes" onset-before-vaccination rows rather than flagging them, and values
   **>10000 days are dropped to NULL** as implausible.
@@ -192,10 +216,13 @@ data/                 generated: vaers.duckdb + cleaned/ (git-ignored)
 
 ## API
 
-`POST /api/dashboard` (every panel aggregate in one round trip; the deaths panel is opt-in via
-`include_deaths`) · `POST /api/cases` (paginated + sortable) ·
+`POST /api/dashboard` (the requested panel aggregates in one round trip — the body's
+`panels: []` names which of the ~27 registered panels to compute, so each view pays only for
+its own; `date_field` picks the VAX_DATE/RECVDATE axis and `no_vaxdate_only` is the All Reports
+toggle) · `POST /api/cases` (paginated + sortable) ·
 `GET /api/case/:id` · `GET /api/field-values?field=X` · `GET /api/filters/vax-types` ·
-`GET /api/status`. Ad-hoc fields/operators are whitelisted; all input is bound parameters.
+`GET /api/status`. Panel keys, ad-hoc fields/operators and the date field are whitelisted
+(unknown panel key → 400); all input is bound parameters.
 
 ## Updating the data
 
