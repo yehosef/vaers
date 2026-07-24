@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@observablehq/plot": "^0.6.15",
-    "axios": "^1.6.0",
+    "axios": "^1.18.0",
     "pinia": "^3.0.3",
     "vue": "^3.4.0",
     "vue-router": "^4.2.0"
